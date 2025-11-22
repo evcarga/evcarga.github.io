@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EvCar - Red de Carga Eléctrica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        
+        /* Mapas */
+        #main-map { height: 500px; width: 100%; border-radius: 0.5rem; }
+        #picker-map { height: 300px; width: 100%; border-radius: 0.5rem; }
+        #detail-map { height: 200px; width: 100%; border-radius: 0.5rem; margin-top: 1rem; }
+
+        /* Modales */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 50; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+        .modal.active { display: flex; animation: fadeIn 0.2s ease-out; }
+        
+        /* Animaciones */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .card-hover:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); }
+        
+        /* Leaflet Font Fix */
+        .leaflet-container { font-family: 'Inter', sans-serif; }
+        
+        /* Scrollbar bonita para modales largos */
+        .custom-scroll::-webkit-scrollbar { width: 8px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <nav class="bg-white shadow-sm p-4 sticky top-0 z-40 border-b border-gray-200">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-green-100 p-2 rounded-lg">
+                    <span class="text-2xl">⚡</span>
+                </div>
+                <div>
+                    <a href="#" class="text-2xl font-bold text-gray-900 tracking-tight" onclick="window.location.reload()">EvCar</a>
+                    <span id="user-display-name" class="block text-xs font-medium text-green-600 hidden"></span>
+                </div>
+            </div>
+            
+            <div id="nav-buttons" class="flex items-center gap-3 text-sm font-medium">
+                </div>
+        </div>
+    </nav>
+
+    <header class="bg-green-700 text-white text-center py-6 px-4 relative overflow-hidden">
+        <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+        <div class="relative z-10 max-w-3xl mx-auto">
+            <h1 class="text-4xl md:text-5xl font-bold mb-2 tracking-tight">Carga tu vehículo sin límites</h1>
+            <p class="text-lg md:text-xl opacity-90 mb-2 font-light">Encuentra puntos de carga compartidos o monetiza el tuyo cuando no lo uses.</p>
+            
+            <div class="bg-white p-2 rounded-xl shadow-2xl flex max-w-lg mx-auto mb-2 transform transition hover:scale-[1.02]">
+                <input type="text" id="city-search" placeholder="¿En qué ciudad buscas cargar?" class="flex-grow p-3 text-gray-700 outline-none rounded-l-lg placeholder-gray-400">
+                <button onclick="filterChargers()" class="bg-gray-900 text-white px-8 py-3 rounded-lg font-semibold hover:bg-gray-800 transition shadow-lg">Buscar</button>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2 justify-center items-center">
+                <button onclick="openMainMap()" class="bg-white text-green-800 px-6 py-2 rounded-lg font-bold shadow-lg hover:bg-gray-50 transition flex items-center gap-2 w-full sm:w-auto justify-center border border-green-600">
+                    🗺️ Ver Mapa Global
+                </button>
+
+                <button id="btn-offer-hero" onclick="openModal('modal-offer')" class="hidden bg-yellow-400 text-yellow-900 px-6 py-2 rounded-lg font-bold shadow-lg hover:bg-yellow-300 transition flex items-center gap-2 w-full sm:w-auto justify-center border border-yellow-500">
+                    ⚡ Ofrecer mi Cargador
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto mt-4 px-4 mb-2">
+        <div class="flex items-center justify-between mb-2 border-b pb-4 border-gray-200">
+            <h3 class="text-2xl font-bold text-gray-800">Puntos de Carga Disponibles</h3>
+            <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full" id="count-chargers">Cargando...</span>
+        </div>
+        
+        <div id="chargers-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="bg-white h-64 rounded-xl shadow animate-pulse"></div>
+            <div class="bg-white h-64 rounded-xl shadow animate-pulse"></div>
+            <div class="bg-white h-64 rounded-xl shadow animate-pulse"></div>
+        </div>
+    </div>
+
+    <div id="modal-detail" class="modal">
+        <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-green-600 p-4 flex justify-between items-center text-white">
+                <h2 class="text-xl font-bold" id="detail-title">Detalle</h2>
+                <button onclick="closeModal('modal-detail')" class="text-white hover:bg-green-700 rounded-full p-1 px-3">✕</button>
+            </div>
+            
+            <div class="p-4 overflow-y-auto custom-scroll text-gray-700 space-y-4">
+                <div id="detail-status-banner" class="text-center p-2 rounded font-bold text-sm mb-2"></div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-0">
+                    <div>
+                        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Ubicación</p>
+                        <p class="text-lg font-semibold" id="detail-city"></p>
+                        <p class="text-sm text-gray-600 mb-2" id="detail-address"></p>
+
+                        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Especificaciones</p>
+                        <ul class="text-sm space-y-1 mb-2">
+                            <li>🔌 <strong>Tipo:</strong> <span id="detail-type"></span></li>
+                            <li>⚡ <strong>Potencia:</strong> <span id="detail-power"></span></li>
+                            <li>🏢 <strong>Parqueo:</strong> <span id="detail-parking-type"></span></li>
+                        </ul>
+
+                        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Costos</p>
+                        <div class="flex gap-4 mb-1">
+                            <div class="bg-blue-50 p-2 rounded border border-blue-100">
+                                <span class="block text-xs text-blue-600">Energía</span>
+                                <span class="font-bold text-blue-800 text-lg" id="detail-price-kwh"></span>
+                            </div>
+                            <div class="bg-orange-50 p-2 rounded border border-orange-100">
+                                <span class="block text-xs text-orange-600">Parqueo</span>
+                                <span class="font-bold text-orange-800 text-lg" id="detail-price-parking"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Horario</p>
+                        <p class="text-sm font-medium mb-2 bg-gray-100 p-2 rounded" id="detail-schedule"></p>
+                        
+                        <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Dueño</p>
+                        <p class="text-sm font-medium" id="detail-owner"></p>
+
+                        <div id="detail-action-buttons" class="mt-1 flex flex-col gap-0"></div>
+                    </div>
+                </div>
+                
+                <div id="detail-map"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-main-map" class="modal">
+        <div class="bg-white p-4 rounded-2xl w-11/12 h-5/6 shadow-2xl flex flex-col relative">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-xl font-bold text-gray-800">Mapa Global de Cargadores</h2>
+                <button onclick="closeModal('modal-main-map')" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold p-2 rounded-full transition">✕</button>
+            </div>
+            <div id="main-map" class="flex-grow shadow-inner border border-gray-200"></div>
+            <button onclick="locateUserOnMainMap()" class="absolute bottom-8 right-8 z-[400] bg-white text-blue-600 p-3 rounded-full shadow-xl hover:bg-blue-50 border border-blue-100 transition" title="Mi ubicación">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="modal-register" class="modal">
+        <div class="bg-white p-8 rounded-2xl w-96 shadow-2xl border-t-4 border-green-600">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Crear Cuenta</h2>
+            <form id="form-register" class="space-y-4">
+                <input type="text" id="reg-name" placeholder="Primer Nombre" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
+                <input type="tel" id="reg-phone" placeholder="Número Celular" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
+                <input type="email" id="reg-email" placeholder="Correo Electrónico" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
+                <input type="password" id="reg-pass" placeholder="Contraseña" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
+                <input type="password" id="reg-pass-confirm" placeholder="Confirmar Contraseña" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
+                <button type="submit" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition shadow-lg">Registrarse</button>
+            </form>
+            <button onclick="closeModal('modal-register')" class="mt-4 text-sm text-gray-500 w-full text-center hover:text-gray-800">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="modal-login" class="modal">
+        <div class="bg-white p-8 rounded-2xl w-96 shadow-2xl border-t-4 border-blue-600">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800">Bienvenido de nuevo</h2>
+            <form id="form-login" class="space-y-4">
+                <input type="email" id="login-email" placeholder="Correo electrónico" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required>
+                <input type="password" id="login-pass" placeholder="Contraseña" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required>
+                <button type="submit" class="w-full bg-gray-900 text-white py-3 rounded-lg font-bold hover:bg-black transition shadow-lg">Iniciar Sesión</button>
+            </form>
+            <button onclick="closeModal('modal-login')" class="mt-4 text-sm text-gray-500 w-full text-center hover:text-gray-800">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="modal-offer" class="modal">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll">
+            <h2 class="text-2xl font-bold mb-6 text-green-700 border-b pb-2">Ofrecer Cargador</h2>
+            <form id="form-offer" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Título del anuncio</label>
+                    <input type="text" id="offer-title" placeholder="Ej: Cargador Rápido Centro" class="w-full border p-3 rounded-lg focus:border-green-500 outline-none" required>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Ciudad</label>
+                        <input type="text" id="offer-city" class="w-full border p-3 rounded-lg" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Dirección</label>
+                        <input type="text" id="offer-address" class="w-full border p-3 rounded-lg" required>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <label class="block text-sm font-bold text-blue-800 mb-3">📍 Ubicación Exacta</label>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="locateUserForForm()" class="flex-1 bg-blue-600 text-white text-sm py-2 rounded-lg hover:bg-blue-700 transition shadow">Usar mi GPS</button>
+                        <button type="button" onclick="openPickerMap()" class="flex-1 bg-white border border-blue-200 text-blue-600 text-sm py-2 rounded-lg hover:bg-blue-50 transition shadow-sm">Seleccionar en Mapa</button>
+                    </div>
+                    <input type="hidden" id="offer-lat"><input type="hidden" id="offer-lng">
+                    <p id="location-status" class="text-xs text-gray-500 mt-2 text-center italic">Coordenadas pendientes...</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo Conector</label>
+                        <select id="offer-type" class="w-full border p-3 rounded-lg bg-white"><option>Tipo 1</option><option>Tipo 2</option><option>Toma 220v</option><option>Toma 110v</option><option>GBT</option></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Potencia</label>
+                        <select id="offer-power" class="w-full border p-3 rounded-lg bg-white"><option>3.7 KW</option><option>7 KW</option><option>15 KW</option><option>50 KW</option></select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Precio / KWH</label>
+                        <input type="number" step="0.01" id="offer-price-kwh" placeholder="$" class="w-full border p-3 rounded-lg" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Precio / Hora Parqueo</label>
+                        <input type="number" step="0.01" id="offer-price-parking" placeholder="$" class="w-full border p-3 rounded-lg" required>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tipo Parqueadero</label>
+                    <select id="offer-parking-type" class="w-full border p-3 rounded-lg bg-white"><option>Cubierto</option><option>Cubierto (Reja)</option><option>Intemperie</option><option>Intemperie (Reja)</option></select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Horario Disponible</label>
+                    <input type="text" id="offer-schedule" placeholder="Ej: Lun-Vie 8am-6pm" class="w-full border p-3 rounded-lg" required>
+                </div>
+
+                <button type="submit" class="w-full bg-yellow-400 text-yellow-900 py-3 rounded-lg font-bold hover:bg-yellow-300 transition shadow-lg mt-2">PUBLICAR CARGADOR</button>
+            </form>
+            <button onclick="closeModal('modal-offer')" class="mt-4 text-sm text-gray-500 w-full text-center hover:underline">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="modal-picker" class="modal">
+        <div class="bg-white p-6 rounded-2xl w-11/12 md:w-2/3 shadow-2xl">
+            <h3 class="text-lg font-bold mb-4">Toca el mapa donde está el cargador</h3>
+            <div id="picker-map" class="rounded-xl shadow-inner border border-gray-200 mb-4"></div>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeModal('modal-picker')" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                <button onclick="confirmPickerLocation()" class="px-6 py-2 bg-green-600 text-white rounded-lg font-bold shadow hover:bg-green-700">Confirmar Ubicación</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-my-chargers" class="modal">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll">
+            <div class="flex justify-between items-center mb-6 border-b pb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Mis Cargadores</h2>
+                <button onclick="closeModal('modal-my-chargers')" class="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+            </div>
+            <div id="my-chargers-container" class="space-y-4"></div>
+        </div>
+    </div>
+
+
+    <style>
+    .float-btn { animation: float 3s ease-in-out infinite; z-index: 9999; }
+    @keyframes float { 
+        0% { transform: translateY(0px); } 
+        50% { transform: translateY(-6px); } 
+        100% { transform: translateY(0px); } 
+    }
+</style>
+
+<a href="https://wa.me/593998639510?text=Hola,%20quiero%20donarte%201%20usd%20por%20tu%20app" 
+   target="_blank" 
+   class="float-btn fixed bottom-5 right-5 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-full shadow-xl flex items-center gap-3 border-2 border-white transition hover:scale-110 no-underline">
+    
+    <span class="text-2xl">💵</span>
+    
+    <div class="flex flex-col leading-none text-left">
+        <span class="text-[10px] font-light opacity-90 uppercase tracking-wide">Soporte</span>
+        <span class="text-sm font-bold">Donar $1 USD</span>
+    </div>
+</a>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ================= CONFIGURACIÓN =================
+        // ⚠️ PON AQUÍ TUS CREDENCIALES DE SUPABASE ⚠️
+  const SUPABASE_URL = 'https://yjnlfewsgksdsvsimdjs.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqbmxmZXdzZ2tzZHN2c2ltZGpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NTk4OTgsImV4cCI6MjA3OTMzNTg5OH0.ysDsAdyn3k2i51xnAkJFGKtEWpQ3laxWV7rpjvFIF8E';
+       
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // ICONO ROJO PARA MAPA
+        const redIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        let mainMap, pickerMap, detailMap, pickerMarker, detailMarker;
+        let currentUser = null;
+        let chargersData = [];
+        let tempPickerCoords = null;
+
+        document.addEventListener('DOMContentLoaded', () => { checkSession(); loadChargers(); });
+
+        // ================= MAPAS =================
+        function openMainMap() {
+            document.getElementById('modal-main-map').classList.add('active');
+            setTimeout(() => {
+                if (!mainMap) {
+                    mainMap = L.map('main-map').setView([-0.175709, -78.485581], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mainMap);
+                    chargersData.forEach(c => addPinToMainMap(c));
+                }
+                mainMap.invalidateSize();
+            }, 200);
+        }
+
+        function addPinToMainMap(c) {
+            if(!c.lat || !c.lng) return;
+            const m = L.marker([c.lat, c.lng], {icon: redIcon}).addTo(mainMap);
+            
+            const isOccupied = c.status === 'OCUPADO';
+            const statusColor = isOccupied ? 'text-red-600' : 'text-green-600';
+            const statusText = isOccupied ? 'OCUPADO' : 'DISPONIBLE';
+
+            m.bindPopup(`
+                <div class="text-center min-w-[300px]">
+                    <h3 class="font-bold text-gray-800 text-lg">${c.title}</h3>
+                    <p class="text-xs font-bold ${statusColor} mb-2">${statusText}</p>
+                    <div class="text-left text-xs bg-gray-50 p-2 rounded space-y-1 border border-gray-200">
+                        <p>⚡ ${c.power} (${c.charger_type})</p>
+                        <p>💰 $${c.price_kwh}/kWh</p>
+                        <p>🅿️ $${c.price_parking}/h</p>
+                    </div>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}" target="_blank" class="block mt-2 bg-light-600 text-white text-xs font-medium uppercase tracking-wider py-2 px-2 rounded font-semibold hover:bg-gray-700">Ir con GPS</a>
+                </div>
+            `);
+        }
+
+        function locateUserOnMainMap() {
+            navigator.geolocation.getCurrentPosition(pos => {
+                mainMap.setView([pos.coords.latitude, pos.coords.longitude], 15);
+                L.circleMarker([pos.coords.latitude, pos.coords.longitude], {color: 'blue', radius: 10, fillColor: '#3b82f6', fillOpacity:0.5}).addTo(mainMap)
+                 .bindPopup("Estás aquí").openPopup();
+            });
+        }
+
+        function openPickerMap() {
+            document.getElementById('modal-picker').classList.add('active');
+            setTimeout(() => {
+                if (!pickerMap) {
+                    pickerMap = L.map('picker-map').setView([-0.175709, -78.485581], 13);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(pickerMap);
+                    pickerMap.on('click', e => {
+                        if(pickerMarker) pickerMap.removeLayer(pickerMarker);
+                        pickerMarker = L.marker(e.latlng, {icon: redIcon}).addTo(pickerMap);
+                        tempPickerCoords = e.latlng;
+                    });
+                }
+                pickerMap.invalidateSize();
+            }, 200);
+        }
+
+        function confirmPickerLocation() {
+            if(tempPickerCoords) {
+                document.getElementById('offer-lat').value = tempPickerCoords.lat;
+                document.getElementById('offer-lng').value = tempPickerCoords.lng;
+                document.getElementById('location-status').innerHTML = `<span class="text-green-600 font-bold">✓ Ubicación Fijada</span>`;
+                closeModal('modal-picker');
+            } else alert("Por favor selecciona un punto en el mapa");
+        }
+
+        function locateUserForForm() {
+            document.getElementById('location-status').innerText = "Buscando satélites...";
+            navigator.geolocation.getCurrentPosition(pos => {
+                document.getElementById('offer-lat').value = pos.coords.latitude;
+                document.getElementById('offer-lng').value = pos.coords.longitude;
+                document.getElementById('location-status').innerHTML = `<span class="text-green-600 font-bold">✓ GPS Fijado</span>`;
+            }, () => {
+                document.getElementById('location-status').innerText = "Error GPS, usa el mapa manual";
+                alert("No pudimos obtener tu ubicación GPS.");
+            });
+        }
+
+        // ================= UI & AUTH =================
+        async function checkSession() {
+            const { data: { session } } = await supabase.auth.getSession();
+            currentUser = session?.user || null;
+            updateUI();
+        }
+
+        async function updateUI() {
+            const nav = document.getElementById('nav-buttons');
+            const btnHero = document.getElementById('btn-offer-hero');
+            const nameDisplay = document.getElementById('user-display-name');
+
+            if (currentUser) {
+                const { data } = await supabase.from('profiles').select('full_name').eq('id', currentUser.id).single();
+                if(data) {
+                    nameDisplay.innerText = `Hola, ${data.full_name}`;
+                    nameDisplay.classList.remove('hidden');
+                }
+                nav.innerHTML = `
+                    <button onclick="openModal('modal-my-chargers');loadMyChargers()" class="text-gray-600 hover:text-green-600 font-medium transition mr-2">Mis Cargadores</button>
+                    <button onclick="logout()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-300 font-bold transition">Salir</button>
+                `;
+                btnHero.classList.remove('hidden');
+                btnHero.classList.add('flex');
+            } else {
+                nameDisplay.classList.add('hidden');
+                nav.innerHTML = `
+                    <button onclick="openModal('modal-login')" class="text-gray-600 hover:text-black font-medium mr-2">Ingresar</button>
+                    <button onclick="openModal('modal-register')" class="bg-green-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow-md">Registrarse</button>
+                `;
+                btnHero.classList.add('hidden');
+                btnHero.classList.remove('flex');
+            }
+            // Reload chargers to update UI specific to user
+            loadChargers();
+        }
+
+        // ================= DATOS (CARGADORES) =================
+        async function loadChargers() {
+            const { data, error } = await supabase.from('chargers').select('*, profiles(full_name, phone)');
+            if(error) return console.error(error);
+            chargersData = data || [];
+            document.getElementById('count-chargers').innerText = `${chargersData.length} encontrados`;
+            renderChargers(chargersData);
+        }
+
+        function renderChargers(list) {
+            const container = document.getElementById('chargers-list');
+            container.innerHTML = '';
+
+            if(list.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-1 md:col-span-3 text-center py-12">
+                        <div class="text-6xl mb-4">🤔</div>
+                        <h3 class="text-xl font-bold text-gray-700">No encontramos cargadores</h3>
+                        <p class="text-gray-500">Intenta buscar en otra ciudad o sé el primero en ofrecer uno.</p>
+                    </div>`;
+                return;
+            }
+
+            list.forEach(c => {
+                const isOccupied = c.status === 'OCUPADO';
+                let statusHTML = isOccupied 
+                    ? `<span class="inline-flex items-center bg-red-100 text-red-800 text-xs font-bold px-2.5 py-0.5 rounded-full"><span class="w-2 h-2 bg-red-500 rounded-full mr-1"></span> OCUPADO</span>`
+                    : `<span class="inline-flex items-center bg-green-100 text-green-800 text-xs font-bold px-2.5 py-0.5 rounded-full"><span class="w-2 h-2 bg-green-500 rounded-full mr-1"></span> DISPONIBLE</span>`;
+
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden card-hover transition duration-300 cursor-pointer flex flex-col h-full';
+                card.onclick = (e) => {
+                    // Evitar abrir modal si se hace click en un botón interno
+                    if(e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+                    openDetailModal(c.id);
+                };
+
+                card.innerHTML = `
+                    <div class="p-3 flex-grow">
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-lg text-gray-900 leading-tight truncate pr-2">${c.title}</h4>
+                            ${statusHTML}
+                        </div>
+                        <div class="flex items-center text-gray-500 text-sm mb-2">
+                            <span class="mr-1">📍</span> 
+                            <span class="truncate">${c.city}</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-2 mb-0">
+                            <div class="bg-gray-50 p-2 rounded text-center border border-gray-100">
+                                <p class="text-xs text-gray-400 uppercase font-bold">Energía</p>
+                                <p class="font-bold text-gray-800">$${c.price_kwh}/kwh</p>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded text-center border border-gray-100">
+                                <p class="text-xs text-gray-400 uppercase font-bold">Potencia</p>
+                                <p class="font-bold text-gray-800 text-sm">${c.power}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 p-3 border-t border-gray-100 flex justify-center">
+                        <span class="text-sm font-medium text-green-700">Ver información completa →</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function openDetailModal(id) {
+            const c = chargersData.find(item => item.id === id);
+            if(!c) return;
+
+            document.getElementById('detail-title').innerText = c.title;
+            document.getElementById('detail-city').innerText = c.city;
+            document.getElementById('detail-address').innerText = c.address;
+            document.getElementById('detail-type').innerText = c.charger_type;
+            document.getElementById('detail-power').innerText = c.power;
+            document.getElementById('detail-parking-type').innerText = c.parking_type;
+            document.getElementById('detail-price-kwh').innerText = `$${c.price_kwh}/kwh`;
+            document.getElementById('detail-price-parking').innerText = `$${c.price_parking}/h`;
+            document.getElementById('detail-schedule').innerText = c.schedule;
+            document.getElementById('detail-owner').innerText = `${c.profiles?.full_name} (Verificado)`;
+
+            // Status Banner
+            const banner = document.getElementById('detail-status-banner');
+            if(c.status === 'OCUPADO') {
+                const until = new Date(c.occupied_until).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', day:'2-digit', month:'short'});
+                banner.className = "bg-red-100 text-red-800 p-3 rounded font-bold text-center";
+                banner.innerText = `⛔ ESTE CARGADOR ESTÁ OCUPADO HASTA: ${until}`;
+            } else {
+                banner.className = "bg-green-100 text-green-800 p-3 rounded font-bold text-center";
+                banner.innerText = "✅ ESTE CARGADOR ESTÁ DISPONIBLE AHORA";
+            }
+
+            // Action Buttons
+            const actions = document.getElementById('detail-action-buttons');
+            const contactBtn = currentUser 
+                ? `<a href="tel:${c.profiles?.phone}" class="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 text-center shadow block transition">📞 Llamar: ${c.profiles?.phone}</a>`
+                : `<button onclick="closeModal('modal-detail');openModal('modal-login')" class="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-300 text-center block transition">Iniciar Sesión para Contactar</button>`;
+            
+            actions.innerHTML = `
+                <a href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}" target="_blank" class="w-full bg-blue-50 text-blue-700 border border-blue-200 py-3 rounded-lg font-bold hover:bg-blue-100 text-center block transition mb-2">📍 Navegar con Google Maps</a>
+                ${contactBtn}
+            `;
+
+            openModal('modal-detail');
+
+            // Init mini map
+            setTimeout(() => {
+                if(detailMap) { detailMap.remove(); } // Clean previous map
+                detailMap = L.map('detail-map').setView([c.lat, c.lng], 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(detailMap);
+                L.marker([c.lat, c.lng], {icon: redIcon}).addTo(detailMap);
+            }, 200);
+        }
+
+        // ================= GESTIÓN MIS CARGADORES =================
+        async function loadMyChargers() {
+            if(!currentUser) return;
+            const { data } = await supabase.from('chargers').select('*').eq('user_id', currentUser.id);
+            const container = document.getElementById('my-chargers-container');
+            container.innerHTML = '';
+            
+            if(!data || data.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center italic">Aún no has publicado cargadores.</p>';
+                return;
+            }
+
+            data.forEach(c => {
+                const item = document.createElement('div');
+                item.className = "bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm";
+                
+                if(c.status === 'DISPONIBLE') {
+                    // Formulario para poner ocupado
+                    item.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-gray-800">${c.title}</h4>
+                            <span class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded">Disponible</span>
+                        </div>
+                        <div class="mt-3 bg-white p-3 rounded border border-gray-200">
+                            <label class="text-xs font-bold text-gray-500 uppercase block mb-1">Marcar Ocupado Hasta:</label>
+                            <div class="flex gap-2">
+                                <input type="datetime-local" id="date-${c.id}" class="flex-grow border p-2 rounded text-sm">
+                                <button onclick="setStatus(${c.id}, 'OCUPADO')" class="bg-red-500 text-white text-xs px-4 py-2 rounded font-bold hover:bg-red-600 transition">CONFIRMAR</button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Botón para liberar
+                    const occupiedDate = new Date(c.occupied_until).toLocaleString();
+                    item.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-bold text-gray-800">${c.title}</h4>
+                            <span class="bg-red-100 text-red-800 text-xs font-bold px-2 py-1 rounded">Ocupado</span>
+                        </div>
+                        <div class="mt-2 p-3 bg-red-50 rounded border border-red-100 flex justify-between items-center">
+                            <span class="text-xs font-bold text-red-700">Hasta: ${occupiedDate}</span>
+                            <button onclick="setStatus(${c.id}, 'DISPONIBLE')" class="bg-green-500 text-white text-xs px-4 py-2 rounded font-bold hover:bg-green-600 transition shadow">LIBERAR AHORA</button>
+                        </div>
+                    `;
+                }
+                container.appendChild(item);
+            });
+        }
+
+        async function setStatus(id, status) {
+            let payload = { status: status };
+            
+            if(status === 'OCUPADO') {
+                const dateVal = document.getElementById(`date-${id}`).value;
+                if(!dateVal) return alert("⚠️ Por favor selecciona fecha y hora para marcarlo como ocupado.");
+                payload.occupied_until = new Date(dateVal).toISOString();
+            } else {
+                payload.occupied_until = null;
+            }
+
+            const { error } = await supabase.from('chargers').update(payload).eq('id', id);
+            if(error) alert(error.message);
+            else {
+                loadMyChargers(); // Refrescar modal
+                loadChargers();   // Refrescar lista fondo
+            }
+        }
+
+        // ================= PUBLICAR =================
+        async function postCharger(e) {
+            e.preventDefault();
+            if(!currentUser) return alert("Inicia sesión");
+            
+            const lat = document.getElementById('offer-lat').value;
+            const lng = document.getElementById('offer-lng').value;
+            if(!lat || !lng) return alert("⚠️ Falta la ubicación. Por favor usa el mapa o GPS.");
+
+            const { error } = await supabase.from('chargers').insert([{
+                user_id: currentUser.id,
+                title: document.getElementById('offer-title').value,
+                city: document.getElementById('offer-city').value,
+                address: document.getElementById('offer-address').value,
+                charger_type: document.getElementById('offer-type').value,
+                power: document.getElementById('offer-power').value,
+                price_kwh: document.getElementById('offer-price-kwh').value,
+                price_parking: document.getElementById('offer-price-parking').value,
+                parking_type: document.getElementById('offer-parking-type').value,
+                schedule: document.getElementById('offer-schedule').value,
+                lat: parseFloat(lat), 
+                lng: parseFloat(lng)
+            }]);
+
+            if(error) alert(error.message);
+            else { 
+                alert("¡Cargador publicado exitosamente!"); 
+                closeModal('modal-offer'); 
+                document.getElementById('form-offer').reset();
+                loadChargers(); 
+            }
+        }
+
+        // ================= UTILIDADES =================
+        function filterChargers() {
+            const term = document.getElementById('city-search').value.toLowerCase();
+            const filtered = chargersData.filter(c => c.city.toLowerCase().includes(term));
+            renderChargers(filtered);
+        }
+        
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        // Auth Events (Register/Login)
+        document.getElementById('form-register').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value;
+            const phone = document.getElementById('reg-phone').value;
+            const email = document.getElementById('reg-email').value;
+            const pass = document.getElementById('reg-pass').value;
+            if(pass !== document.getElementById('reg-pass-confirm').value) return alert("Las contraseñas no coinciden");
+
+            const { data, error } = await supabase.auth.signUp({ email, password: pass, options: { data: { full_name: name, phone: phone } } });
+            if(error) alert(error.message); else { alert("Cuenta creada."); closeModal('modal-register'); }
+        });
+
+        document.getElementById('form-login').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const { error } = await supabase.auth.signInWithPassword({ email: document.getElementById('login-email').value, password: document.getElementById('login-pass').value });
+            if(error) alert(error.message); else { closeModal('modal-login'); checkSession(); }
+        });
+
+        document.getElementById('form-offer').addEventListener('submit', postCharger);
+        async function logout() { await supabase.auth.signOut(); window.location.reload(); }
+    </script>
+</body>
+</html>
