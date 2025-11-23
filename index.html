@@ -130,6 +130,12 @@
                 <div class="bg-slate-50 h-48 rounded-xl animate-pulse"></div>
                 <div class="bg-slate-50 h-48 rounded-xl animate-pulse"></div>
             </div>
+
+            <div id="load-more-container" class="mt-8 text-center hidden">
+                <button onclick="loadMore()" class="bg-white text-slate-600 border border-slate-300 px-6 py-3 rounded-full font-bold hover:bg-slate-50 hover:text-green-600 transition shadow-sm flex items-center gap-2 mx-auto">
+                    ⬇️ Ver más cargadores
+                </button>
+            </div>
         </div>
     </div>
 
@@ -361,6 +367,7 @@
     let mainMap, pickerMap, detailMap, pickerMarker, detailMarker;
     let currentUser = null;
     let chargersData = [];
+    let itemsLimit = 6;
     let tempPickerCoords = null;
     let userLocationMarker = null; // Variable para rastrear el marcador del usuario
 
@@ -570,62 +577,73 @@
     }
 
     function renderChargers(list) {
-        const container = document.getElementById('chargers-list');
-        container.innerHTML = '';
+    const container = document.getElementById('chargers-list');
+    const btnContainer = document.getElementById('load-more-container');
+    container.innerHTML = '';
 
-        if(list.length === 0) {
-            container.innerHTML = `
-                <div class="col-span-1 md:col-span-3 text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                    <div class="text-5xl mb-4 opacity-50">🌱</div>
-                    <h3 class="text-lg font-bold text-slate-700">No hay cargadores aquí</h3>
-                    <p class="text-slate-500 text-sm">Intenta otra ciudad o sé el primero.</p>
-                </div>`;
-            return;
-        }
-
-        list.forEach(c => {
-            const isOccupied = c.status === 'OCUPADO';
-            let statusHTML = isOccupied 
-                ? `<span class="inline-flex items-center bg-red-50 text-red-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-red-100 tracking-wide">OCUPADO</span>`
-                : `<span class="inline-flex items-center bg-green-50 text-green-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-green-100 tracking-wide">DISPONIBLE</span>`;
-
-            const card = document.createElement('div');
-            card.className = 'bg-white rounded-xl shadow-sm border border-green-500 overflow-hidden card-hover transition duration-300 cursor-pointer flex flex-col h-full group hover:border-green-500';
-            card.onclick = (e) => {
-                if(e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
-                openDetailModal(c.id);
-            };
-
-            card.innerHTML = `
-                <div class="p-4 flex-grow relative">
-                    <div class="flex justify-between items-start mb-3">
-                        <h4 class="font-bold text-base text-slate-800 leading-tight truncate pr-2 group-hover:text-green-700 transition">${c.title}</h4>
-                        ${statusHTML}
-                    </div>
-                    <div class="flex items-center text-slate-500 text-xs mb-4">
-                        <span class="mr-1">📍</span> 
-                        <span class="truncate font-medium">${c.city}</span>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-2 mb-0">
-                        <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
-                            <p class="text-[10px] text-slate-400 uppercase font-bold">Energía</p>
-                            <p class="font-bold text-slate-700">$${c.price_kwh}</p>
-                        </div>
-                        <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
-                            <p class="text-[10px] text-slate-400 uppercase font-bold">Potencia</p>
-                            <p class="font-bold text-slate-700 text-sm">${c.power}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-slate-50 p-3 border-t border-slate-100 flex justify-center">
-                    <span class="text-xs font-bold text-slate-400 group-hover:text-green-600 transition">Ver detalles completos →</span>
-                </div>
-            `;
-            container.appendChild(card);
-        });
+    if(list.length === 0) {
+        container.innerHTML = `
+            <div class="col-span-1 md:col-span-3 text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <div class="text-5xl mb-4 opacity-50">🌱</div>
+                <h3 class="text-lg font-bold text-slate-700">No hay cargadores aquí</h3>
+                <p class="text-slate-500 text-sm">Intenta otra ciudad o sé el primero.</p>
+            </div>`;
+        btnContainer.classList.add('hidden'); // Ocultar botón si no hay datos
+        return;
     }
 
+    // AQUI ESTA LA MAGIA: Cortamos la lista según el límite actual
+    const visibleItems = list.slice(0, itemsLimit);
+
+    visibleItems.forEach(c => {
+        const isOccupied = c.status === 'OCUPADO';
+        let statusHTML = isOccupied 
+            ? `<span class="inline-flex items-center bg-red-50 text-red-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-red-100 tracking-wide">OCUPADO</span>`
+            : `<span class="inline-flex items-center bg-green-50 text-green-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-green-100 tracking-wide">DISPONIBLE</span>`;
+
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl shadow-sm border border-green-500 overflow-hidden card-hover transition duration-300 cursor-pointer flex flex-col h-full group hover:border-green-500';
+        card.onclick = (e) => {
+            if(e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+            openDetailModal(c.id);
+        };
+
+        card.innerHTML = `
+            <div class="p-4 flex-grow relative">
+                <div class="flex justify-between items-start mb-3">
+                    <h4 class="font-bold text-base text-slate-800 leading-tight truncate pr-2 group-hover:text-green-700 transition">${c.title}</h4>
+                    ${statusHTML}
+                </div>
+                <div class="flex items-center text-slate-500 text-xs mb-4">
+                    <span class="mr-1">📍</span> 
+                    <span class="truncate font-medium">${c.city}</span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2 mb-0">
+                    <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold">Energía</p>
+                        <p class="font-bold text-slate-700">$${c.price_kwh}</p>
+                    </div>
+                    <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold">Potencia</p>
+                        <p class="font-bold text-slate-700 text-sm">${c.power}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-slate-50 p-3 border-t border-slate-100 flex justify-center">
+                <span class="text-xs font-bold text-slate-400 group-hover:text-green-600 transition">Ver detalles completos →</span>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+
+    // Lógica para mostrar u ocultar el botón "Ver más"
+    if (itemsLimit >= list.length) {
+        btnContainer.classList.add('hidden'); // Ya mostramos todos
+    } else {
+        btnContainer.classList.remove('hidden'); // Aún faltan items
+    }
+}
     function openDetailModal(id) {
         const c = chargersData.find(item => item.id === id);
         if(!c) return;
@@ -767,7 +785,18 @@
     }
 
     // ================= UTILIDADES =================
+    // Agrega esta función nueva
+    function loadMore() {
+        itemsLimit += 10; // Suma 10 más
+        // Volvemos a renderizar la lista actual (ya sea filtrada o completa)
+        const term = document.getElementById('city-search').value.toLowerCase();
+        const filtered = chargersData.filter(c => c.city.toLowerCase().includes(term));
+        renderChargers(filtered);
+    }
+
+    // Modifica esta función existente (para reiniciar a 10 cuando busques)
     function filterChargers() {
+        itemsLimit = 10; // Reinicia el límite al buscar
         const term = document.getElementById('city-search').value.toLowerCase();
         const filtered = chargersData.filter(c => c.city.toLowerCase().includes(term));
         renderChargers(filtered);
