@@ -391,13 +391,21 @@
     // ================= MAPAS =================
     function openMainMap() {
         document.getElementById('modal-main-map').classList.add('active');
+        
+        // Esperamos un poco a que la animación del modal termine
         setTimeout(() => {
             if (!mainMap) {
+                // Si el mapa no existe, lo creamos
                 mainMap = L.map('main-map').setView([-0.175709, -78.485581], 13);
                 L.tileLayer(TILE_LAYER_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 20 }).addTo(mainMap);
                 chargersData.forEach(c => addPinToMainMap(c));
             }
-            mainMap.invalidateSize();
+            
+            mainMap.invalidateSize(); // Ajusta el tamaño del mapa al contenedor
+            
+            // MAGIA AQUÍ: Llamamos al localizador automáticamente al abrir
+            locateUserOnMainMap(); 
+            
         }, 200);
     }
 
@@ -430,51 +438,54 @@
     // CORRECCIÓN PRINCIPAL: Localizador GPS Mejorado
     function locateUserOnMainMap() {
         if (!navigator.geolocation) {
-            alert("Tu navegador no soporta geolocalización o no estás en un sitio seguro (HTTPS).");
+            console.log("GPS no soportado");
             return;
         }
 
+        // Referencia al botón para mostrar carga (opcional, por si el usuario lo presiona después)
         const btn = document.querySelector('button[onclick="locateUserOnMainMap()"]');
-        const originalIcon = btn.innerHTML;
-        btn.innerHTML = '⌛'; // Indicador de carga
+        let originalIcon = "";
+        if(btn) {
+            originalIcon = btn.innerHTML;
+            btn.innerHTML = '⌛'; // Icono de carga
+        }
 
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
 
-                mainMap.setView([lat, lng], 15);
+                // Vuelo suave hacia la ubicación
+                mainMap.flyTo([lat, lng], 15, { duration: 1.5 });
                 
-                // Si ya existe un marcador anterior del usuario, lo actualizamos
+                // Si ya existe un marcador anterior, lo borramos para no tener duplicados
                 if (userLocationMarker) {
                     mainMap.removeLayer(userLocationMarker);
                 }
 
+                // Crear el PUNTO AZUL brillante
                 userLocationMarker = L.circleMarker([lat, lng], {
-                    color: '#fff', 
-                    weight: 3,
-                    radius: 10, 
-                    fillColor: '#2563eb', // Azul brillante
+                    color: '#ffffff',      // Borde blanco
+                    weight: 3,             // Grosor del borde
+                    radius: 12,            // Tamaño del punto
+                    fillColor: '#2563eb',  // Relleno Azul
                     fillOpacity: 1,
-                    className: 'animate-pulse' // Efecto visual Tailwind
-                }).addTo(mainMap).bindPopup("<b>Estás aquí</b>").openPopup();
+                    className: 'animate-pulse' // Animación de pulso
+                }).addTo(mainMap);
+
+                // Agregar el popup y abrirlo inmediatamente
+                userLocationMarker.bindPopup("<b>📍 Estás aquí</b>").openPopup();
                 
-                btn.innerHTML = originalIcon;
+                if(btn) btn.innerHTML = originalIcon;
             },
             (error) => {
-                console.error("Error GPS:", error);
-                let msg = "Error al obtener ubicación.";
-                if(error.code === 1) msg = "Permiso denegado. Activa el GPS en tu navegador.";
-                else if(error.code === 2) msg = "Ubicación no disponible.";
-                else if(error.code === 3) msg = "Tiempo de espera agotado.";
-                
-                alert("⚠️ " + msg + " Asegúrate de tener el GPS activado.");
-                btn.innerHTML = originalIcon;
+                console.warn("No se pudo obtener la ubicación automática:", error.message);
+                // No mostramos alerta intrusiva si falla automáticamente, solo restauramos el botón
+                if(btn) btn.innerHTML = originalIcon;
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     }
-
     function openPickerMap() {
         document.getElementById('modal-picker').classList.add('active');
         setTimeout(() => {
