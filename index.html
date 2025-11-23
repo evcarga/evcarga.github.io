@@ -351,408 +351,452 @@
     </a>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // ================= CONFIGURACIÓN =================
-        const SUPABASE_URL = 'https://yjnlfewsgksdsvsimdjs.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqbmxmZXdzZ2tzZHN2c2ltZGpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NTk4OTgsImV4cCI6MjA3OTMzNTg5OH0.ysDsAdyn3k2i51xnAkJFGKtEWpQ3laxWV7rpjvFIF8E';
-        
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+<script>
+    // ================= CONFIGURACIÓN =================
+    const SUPABASE_URL = 'https://yjnlfewsgksdsvsimdjs.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqbmxmZXdzZ2tzZHN2c2ltZGpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NTk4OTgsImV4cCI6MjA3OTMzNTg5OH0.ysDsAdyn3k2i51xnAkJFGKtEWpQ3laxWV7rpjvFIF8E';
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let mainMap, pickerMap, detailMap, pickerMarker, detailMarker;
-        let currentUser = null;
-        let chargersData = [];
-        let tempPickerCoords = null;
+    let mainMap, pickerMap, detailMap, pickerMarker, detailMarker;
+    let currentUser = null;
+    let chargersData = [];
+    let tempPickerCoords = null;
+    let userLocationMarker = null; // Variable para rastrear el marcador del usuario
 
-        // URL de Mapa Claro (CartoDB Positron) - ESTO ES LO QUE LO HACE VERSE LIMPIO
-        const TILE_LAYER_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-        const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+    // URL de Mapa Claro (CartoDB Positron)
+    const TILE_LAYER_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    const TILE_ATTRIBUTION = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>';
 
-        document.addEventListener('DOMContentLoaded', () => { checkSession(); loadChargers(); });
+    document.addEventListener('DOMContentLoaded', () => { checkSession(); loadChargers(); });
 
-        // Helper para crear Icono Moderno CSS
-        function createModernIcon(status) {
-            return L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div style="background-color:${status === 'OCUPADO' ? '#ef4444' : '#16a34a'}" class="marker-pin"></div>`,
-                iconSize: [30, 42],
-                iconAnchor: [15, 42],
-                popupAnchor: [0, -35]
-            });
-        }
+    // Helper para crear Icono Moderno CSS
+    function createModernIcon(status) {
+        return L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div style="background-color:${status === 'OCUPADO' ? '#ef4444' : '#16a34a'}" class="marker-pin"></div>`,
+            iconSize: [30, 42],
+            iconAnchor: [15, 42],
+            popupAnchor: [0, -35]
+        });
+    }
 
-        // ================= MAPAS =================
-        function openMainMap() {
-            document.getElementById('modal-main-map').classList.add('active');
-            setTimeout(() => {
-                if (!mainMap) {
-                    mainMap = L.map('main-map').setView([-0.175709, -78.485581], 13);
-                    // Usamos la capa clara de CartoDB
-                    L.tileLayer(TILE_LAYER_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 20 }).addTo(mainMap);
-                    chargersData.forEach(c => addPinToMainMap(c));
-                }
-                mainMap.invalidateSize();
-            }, 200);
-        }
-
-        function addPinToMainMap(c) {
-            if(!c.lat || !c.lng) return;
-            
-            // Usamos el icono moderno CSS
-            const m = L.marker([c.lat, c.lng], { icon: createModernIcon(c.status) }).addTo(mainMap);
-            
-            const isOccupied = c.status === 'OCUPADO';
-            const statusColor = isOccupied ? 'text-red-600' : 'text-green-600';
-            const statusText = isOccupied ? 'OCUPADO' : 'DISPONIBLE';
-
-            m.bindPopup(`
-                <div class="text-center min-w-[240px] p-1">
-                    <h3 class="font-bold text-slate-800 text-base mb-1">${c.title}</h3>
-                    <p class="text-xs font-bold ${statusColor} mb-2 uppercase tracking-wide">${statusText}</p>
-                    <div class="text-left text-xs bg-slate-50 p-2 rounded space-y-1 border border-green-500 text-slate-600">
-                        <p>⚡ ${c.power} (${c.charger_type})</p>
-                        <p>💰 $${c.price_kwh}/kWh</p>
-                    </div>
-                    <a href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}" target="_blank" class="block mt-2 bg-blue-100 text-white text-xs font-medium uppercase tracking-wider py-2 px-2 rounded hover:bg-blue-700 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        Navegar con Google Maps    
-                    </a>
-                </div>
-            `);
-        }
-
-        function locateUserOnMainMap() {
-            navigator.geolocation.getCurrentPosition(pos => {
-                mainMap.setView([pos.coords.latitude, pos.coords.longitude], 15);
-                L.circleMarker([pos.coords.latitude, pos.coords.longitude], {
-                    color: '#fff', 
-                    weight: 2,
-                    radius: 12, 
-                    fillColor: '#2563eb', 
-                    fillOpacity: 1
-                }).addTo(mainMap).bindPopup("Estás aquí").openPopup();
-            });
-        }
-
-        function openPickerMap() {
-            document.getElementById('modal-picker').classList.add('active');
-            setTimeout(() => {
-                if (!pickerMap) {
-                    pickerMap = L.map('picker-map').setView([-0.175709, -78.485581], 13);
-                    // Capa clara
-                    L.tileLayer(TILE_LAYER_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 20 }).addTo(pickerMap);
-                    pickerMap.on('click', e => {
-                        if(pickerMarker) pickerMap.removeLayer(pickerMarker);
-                        pickerMarker = L.marker(e.latlng, { icon: createModernIcon('DISPONIBLE') }).addTo(pickerMap);
-                        tempPickerCoords = e.latlng;
-                    });
-                }
-                pickerMap.invalidateSize();
-            }, 200);
-        }
-
-        function confirmPickerLocation() {
-            if(tempPickerCoords) {
-                document.getElementById('offer-lat').value = tempPickerCoords.lat;
-                document.getElementById('offer-lng').value = tempPickerCoords.lng;
-                document.getElementById('location-status').innerHTML = `<span class="text-green-600 font-bold flex justify-center items-center gap-1">✓ Ubicación Fijada</span>`;
-                closeModal('modal-picker');
-            } else alert("Por favor selecciona un punto en el mapa");
-        }
-
-        function locateUserForForm() {
-            document.getElementById('location-status').innerText = "Buscando satélites...";
-            navigator.geolocation.getCurrentPosition(pos => {
-                document.getElementById('offer-lat').value = pos.coords.latitude;
-                document.getElementById('offer-lng').value = pos.coords.longitude;
-                document.getElementById('location-status').innerHTML = `<span class="text-green-600 font-bold flex justify-center items-center gap-1">✓ GPS Fijado</span>`;
-            }, () => {
-                document.getElementById('location-status').innerText = "Error GPS, usa el mapa manual";
-                alert("No pudimos obtener tu ubicación GPS.");
-            });
-        }
-
-        // ================= UI & AUTH =================
-        async function checkSession() {
-            const { data: { session } } = await supabase.auth.getSession();
-            currentUser = session?.user || null;
-            updateUI();
-        }
-
-        async function updateUI() {
-            const nav = document.getElementById('nav-buttons');
-            const btnHero = document.getElementById('btn-offer-hero');
-            const nameDisplay = document.getElementById('user-display-name');
-
-            if (currentUser) {
-                const { data } = await supabase.from('profiles').select('full_name').eq('id', currentUser.id).single();
-                if(data) {
-                    nameDisplay.innerText = `Hola, ${data.full_name}`;
-                    nameDisplay.classList.remove('hidden');
-                }
-                nav.innerHTML = `
-                    <button onclick="openModal('modal-my-chargers');loadMyChargers()" class="text-slate-500 hover:text-green-600 font-medium transition mr-2 text-xs sm:text-sm">Mis Cargadores</button>
-                    <button onclick="logout()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-xs sm:text-sm hover:bg-slate-200 font-bold transition">Salir</button>
-                `;
-                btnHero.classList.remove('hidden');
-                btnHero.classList.add('flex');
-            } else {
-                nameDisplay.classList.add('hidden');
-                nav.innerHTML = `
-                    <button onclick="openModal('modal-login')" class="text-slate-500 hover:text-slate-800 font-medium mr-2 text-xs sm:text-sm">Ingresar</button>
-                    <button onclick="openModal('modal-register')" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow-md text-xs sm:text-sm">Registro</button>
-                `;
-                btnHero.classList.add('hidden');
-                btnHero.classList.remove('flex');
-            }
-            loadChargers();
-        }
-
-        // ================= DATOS (CARGADORES) =================
-        async function loadChargers() {
-            const { data, error } = await supabase.from('chargers').select('*, profiles(full_name, phone)');
-            if(error) return console.error(error);
-            chargersData = data || [];
-            document.getElementById('count-chargers').innerText = `${chargersData.length} activos`;
-            renderChargers(chargersData);
-            
-            // Actualizar mapa principal si está abierto
-            if(mainMap) {
-                mainMap.eachLayer((layer) => { if(layer instanceof L.Marker) mainMap.removeLayer(layer); });
+    // ================= MAPAS =================
+    function openMainMap() {
+        document.getElementById('modal-main-map').classList.add('active');
+        setTimeout(() => {
+            if (!mainMap) {
+                mainMap = L.map('main-map').setView([-0.175709, -78.485581], 13);
+                L.tileLayer(TILE_LAYER_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 20 }).addTo(mainMap);
                 chargersData.forEach(c => addPinToMainMap(c));
             }
+            mainMap.invalidateSize();
+        }, 200);
+    }
+
+    function addPinToMainMap(c) {
+        if(!c.lat || !c.lng) return;
+        
+        const m = L.marker([c.lat, c.lng], { icon: createModernIcon(c.status) }).addTo(mainMap);
+        
+        const isOccupied = c.status === 'OCUPADO';
+        const statusColor = isOccupied ? 'text-red-600' : 'text-green-600';
+        const statusText = isOccupied ? 'OCUPADO' : 'DISPONIBLE';
+
+        // CORRECCIÓN AQUÍ: Se arregló la sintaxis del link de Google Maps
+        m.bindPopup(`
+            <div class="text-center min-w-[240px] p-1">
+                <h3 class="font-bold text-slate-800 text-base mb-1">${c.title}</h3>
+                <p class="text-xs font-bold ${statusColor} mb-2 uppercase tracking-wide">${statusText}</p>
+                <div class="text-left text-xs bg-slate-50 p-2 rounded space-y-1 border border-green-500 text-slate-600">
+                    <p>⚡ ${c.power} (${c.charger_type})</p>
+                    <p>💰 $${c.price_kwh}/kWh</p>
+                </div>
+                <a href="https://www.google.com/maps?q=${c.lat},${c.lng}" target="_blank" class="block mt-2 bg-blue-100 text-white text-xs font-medium uppercase tracking-wider py-2 px-2 rounded hover:bg-blue-700 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    Navegar con Google Maps    
+                </a>
+            </div>
+        `);
+    }
+
+    // CORRECCIÓN PRINCIPAL: Localizador GPS Mejorado
+    function locateUserOnMainMap() {
+        if (!navigator.geolocation) {
+            alert("Tu navegador no soporta geolocalización o no estás en un sitio seguro (HTTPS).");
+            return;
         }
 
-        function renderChargers(list) {
-            const container = document.getElementById('chargers-list');
-            container.innerHTML = '';
+        const btn = document.querySelector('button[onclick="locateUserOnMainMap()"]');
+        const originalIcon = btn.innerHTML;
+        btn.innerHTML = '⌛'; // Indicador de carga
 
-            if(list.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-1 md:col-span-3 text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                        <div class="text-5xl mb-4 opacity-50">🌱</div>
-                        <h3 class="text-lg font-bold text-slate-700">No hay cargadores aquí</h3>
-                        <p class="text-slate-500 text-sm">Intenta otra ciudad o sé el primero.</p>
-                    </div>`;
-                return;
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+
+                mainMap.setView([lat, lng], 15);
+                
+                // Si ya existe un marcador anterior del usuario, lo actualizamos
+                if (userLocationMarker) {
+                    mainMap.removeLayer(userLocationMarker);
+                }
+
+                userLocationMarker = L.circleMarker([lat, lng], {
+                    color: '#fff', 
+                    weight: 3,
+                    radius: 10, 
+                    fillColor: '#2563eb', // Azul brillante
+                    fillOpacity: 1,
+                    className: 'animate-pulse' // Efecto visual Tailwind
+                }).addTo(mainMap).bindPopup("<b>Estás aquí</b>").openPopup();
+                
+                btn.innerHTML = originalIcon;
+            },
+            (error) => {
+                console.error("Error GPS:", error);
+                let msg = "Error al obtener ubicación.";
+                if(error.code === 1) msg = "Permiso denegado. Activa el GPS en tu navegador.";
+                else if(error.code === 2) msg = "Ubicación no disponible.";
+                else if(error.code === 3) msg = "Tiempo de espera agotado.";
+                
+                alert("⚠️ " + msg + " Asegúrate de tener el GPS activado.");
+                btn.innerHTML = originalIcon;
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }
+
+    function openPickerMap() {
+        document.getElementById('modal-picker').classList.add('active');
+        setTimeout(() => {
+            if (!pickerMap) {
+                pickerMap = L.map('picker-map').setView([-0.175709, -78.485581], 13);
+                L.tileLayer(TILE_LAYER_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 20 }).addTo(pickerMap);
+                pickerMap.on('click', e => {
+                    if(pickerMarker) pickerMap.removeLayer(pickerMarker);
+                    pickerMarker = L.marker(e.latlng, { icon: createModernIcon('DISPONIBLE') }).addTo(pickerMap);
+                    tempPickerCoords = e.latlng;
+                });
             }
+            pickerMap.invalidateSize();
+        }, 200);
+    }
 
-            list.forEach(c => {
-                const isOccupied = c.status === 'OCUPADO';
-                let statusHTML = isOccupied 
-                    ? `<span class="inline-flex items-center bg-red-50 text-red-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-red-100 tracking-wide">OCUPADO</span>`
-                    : `<span class="inline-flex items-center bg-green-50 text-green-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-green-100 tracking-wide">DISPONIBLE</span>`;
+    function confirmPickerLocation() {
+        if(tempPickerCoords) {
+            document.getElementById('offer-lat').value = tempPickerCoords.lat;
+            document.getElementById('offer-lng').value = tempPickerCoords.lng;
+            document.getElementById('location-status').innerHTML = `<span class="text-green-600 font-bold flex justify-center items-center gap-1">✓ Ubicación Fijada</span>`;
+            closeModal('modal-picker');
+        } else alert("Por favor selecciona un punto en el mapa");
+    }
 
-                const card = document.createElement('div');
-                card.className = 'bg-white rounded-xl shadow-sm border border-green-500 overflow-hidden card-hover transition duration-300 cursor-pointer flex flex-col h-full group hover:border-green-500';
-                card.onclick = (e) => {
-                    if(e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
-                    openDetailModal(c.id);
-                };
+    function locateUserForForm() {
+        document.getElementById('location-status').innerText = "Buscando satélites...";
+        
+        if (!navigator.geolocation) {
+            document.getElementById('location-status').innerText = "GPS no soportado";
+            return;
+        }
 
-                card.innerHTML = `
-                    <div class="p-4 flex-grow relative">
-                        <div class="flex justify-between items-start mb-3">
-                            <h4 class="font-bold text-base text-slate-800 leading-tight truncate pr-2 group-hover:text-green-700 transition">${c.title}</h4>
-                            ${statusHTML}
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                document.getElementById('offer-lat').value = pos.coords.latitude;
+                document.getElementById('offer-lng').value = pos.coords.longitude;
+                document.getElementById('location-status').innerHTML = `<span class="text-green-600 font-bold flex justify-center items-center gap-1">✓ GPS Fijado (Precisión: ${Math.round(pos.coords.accuracy)}m)</span>`;
+            }, 
+            (err) => {
+                console.error(err);
+                document.getElementById('location-status').innerText = "Error GPS, usa el mapa manual";
+                alert("No pudimos obtener tu ubicación GPS. Verifica permisos.");
+            },
+            { enableHighAccuracy: true } // Importante para formularios
+        );
+    }
+
+    // ================= UI & AUTH =================
+    async function checkSession() {
+        const { data: { session } } = await supabase.auth.getSession();
+        currentUser = session?.user || null;
+        updateUI();
+    }
+
+    async function updateUI() {
+        const nav = document.getElementById('nav-buttons');
+        const btnHero = document.getElementById('btn-offer-hero');
+        const nameDisplay = document.getElementById('user-display-name');
+
+        if (currentUser) {
+            const { data } = await supabase.from('profiles').select('full_name').eq('id', currentUser.id).single();
+            if(data) {
+                nameDisplay.innerText = `Hola, ${data.full_name}`;
+                nameDisplay.classList.remove('hidden');
+            }
+            nav.innerHTML = `
+                <button onclick="openModal('modal-my-chargers');loadMyChargers()" class="text-slate-500 hover:text-green-600 font-medium transition mr-2 text-xs sm:text-sm">Mis Cargadores</button>
+                <button onclick="logout()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-xs sm:text-sm hover:bg-slate-200 font-bold transition">Salir</button>
+            `;
+            btnHero.classList.remove('hidden');
+            btnHero.classList.add('flex');
+        } else {
+            nameDisplay.classList.add('hidden');
+            nav.innerHTML = `
+                <button onclick="openModal('modal-login')" class="text-slate-500 hover:text-slate-800 font-medium mr-2 text-xs sm:text-sm">Ingresar</button>
+                <button onclick="openModal('modal-register')" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow-md text-xs sm:text-sm">Registro</button>
+            `;
+            btnHero.classList.add('hidden');
+            btnHero.classList.remove('flex');
+        }
+        loadChargers();
+    }
+
+    // ================= DATOS (CARGADORES) =================
+    async function loadChargers() {
+        const { data, error } = await supabase.from('chargers').select('*, profiles(full_name, phone)');
+        if(error) return console.error(error);
+        chargersData = data || [];
+        document.getElementById('count-chargers').innerText = `${chargersData.length} activos`;
+        renderChargers(chargersData);
+        
+        if(mainMap) {
+            mainMap.eachLayer((layer) => { 
+                // Eliminar solo marcadores de cargadores, no el del usuario
+                if(layer instanceof L.Marker && layer !== userLocationMarker) mainMap.removeLayer(layer); 
+            });
+            chargersData.forEach(c => addPinToMainMap(c));
+        }
+    }
+
+    function renderChargers(list) {
+        const container = document.getElementById('chargers-list');
+        container.innerHTML = '';
+
+        if(list.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-1 md:col-span-3 text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <div class="text-5xl mb-4 opacity-50">🌱</div>
+                    <h3 class="text-lg font-bold text-slate-700">No hay cargadores aquí</h3>
+                    <p class="text-slate-500 text-sm">Intenta otra ciudad o sé el primero.</p>
+                </div>`;
+            return;
+        }
+
+        list.forEach(c => {
+            const isOccupied = c.status === 'OCUPADO';
+            let statusHTML = isOccupied 
+                ? `<span class="inline-flex items-center bg-red-50 text-red-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-red-100 tracking-wide">OCUPADO</span>`
+                : `<span class="inline-flex items-center bg-green-50 text-green-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-green-100 tracking-wide">DISPONIBLE</span>`;
+
+            const card = document.createElement('div');
+            card.className = 'bg-white rounded-xl shadow-sm border border-green-500 overflow-hidden card-hover transition duration-300 cursor-pointer flex flex-col h-full group hover:border-green-500';
+            card.onclick = (e) => {
+                if(e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+                openDetailModal(c.id);
+            };
+
+            card.innerHTML = `
+                <div class="p-4 flex-grow relative">
+                    <div class="flex justify-between items-start mb-3">
+                        <h4 class="font-bold text-base text-slate-800 leading-tight truncate pr-2 group-hover:text-green-700 transition">${c.title}</h4>
+                        ${statusHTML}
+                    </div>
+                    <div class="flex items-center text-slate-500 text-xs mb-4">
+                        <span class="mr-1">📍</span> 
+                        <span class="truncate font-medium">${c.city}</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 mb-0">
+                        <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
+                            <p class="text-[10px] text-slate-400 uppercase font-bold">Energía</p>
+                            <p class="font-bold text-slate-700">$${c.price_kwh}</p>
                         </div>
-                        <div class="flex items-center text-slate-500 text-xs mb-4">
-                            <span class="mr-1">📍</span> 
-                            <span class="truncate font-medium">${c.city}</span>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-2 mb-0">
-                            <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
-                                <p class="text-[10px] text-slate-400 uppercase font-bold">Energía</p>
-                                <p class="font-bold text-slate-700">$${c.price_kwh}</p>
-                            </div>
-                            <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
-                                <p class="text-[10px] text-slate-400 uppercase font-bold">Potencia</p>
-                                <p class="font-bold text-slate-700 text-sm">${c.power}</p>
-                            </div>
+                        <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
+                            <p class="text-[10px] text-slate-400 uppercase font-bold">Potencia</p>
+                            <p class="font-bold text-slate-700 text-sm">${c.power}</p>
                         </div>
                     </div>
-                    <div class="bg-slate-50 p-3 border-t border-slate-100 flex justify-center">
-                        <span class="text-xs font-bold text-slate-400 group-hover:text-green-600 transition">Ver detalles completos →</span>
+                </div>
+                <div class="bg-slate-50 p-3 border-t border-slate-100 flex justify-center">
+                    <span class="text-xs font-bold text-slate-400 group-hover:text-green-600 transition">Ver detalles completos →</span>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function openDetailModal(id) {
+        const c = chargersData.find(item => item.id === id);
+        if(!c) return;
+
+        document.getElementById('detail-title').innerText = c.title;
+        document.getElementById('detail-city').innerText = c.city;
+        document.getElementById('detail-address').innerText = c.address;
+        document.getElementById('detail-type').innerText = c.charger_type;
+        document.getElementById('detail-power').innerText = c.power;
+        document.getElementById('detail-parking-type').innerText = c.parking_type;
+        document.getElementById('detail-price-kwh').innerText = `$${c.price_kwh}/kwh`;
+        document.getElementById('detail-price-parking').innerText = `$${c.price_parking}/h`;
+        document.getElementById('detail-schedule').innerText = c.schedule;
+
+        const banner = document.getElementById('detail-status-banner');
+        if(c.status === 'OCUPADO') {
+            const until = new Date(c.occupied_until).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            banner.className = "bg-red-50 text-red-700 p-3 rounded-lg font-bold text-center border border-red-100 text-xs";
+            banner.innerText = `⛔ OCUPADO HASTA: ${until}`;
+        } else {
+            banner.className = "bg-green-50 text-green-700 p-3 rounded-lg font-bold text-center border border-green-100 text-xs";
+            banner.innerText = "✅ DISPONIBLE AHORA";
+        }
+
+        const actions = document.getElementById('detail-action-buttons');
+        const contactBtn = currentUser 
+            ? `<a href="tel:${c.profiles?.phone}" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 text-center shadow block transition flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg> Llamar al dueño</a>`
+            : `<button onclick="closeModal('modal-detail');openModal('modal-login')" class="w-full bg-slate-200 text-slate-600 py-3 rounded-lg font-bold hover:bg-slate-300 text-center block transition text-xs">Inicia Sesión para Contactar</button>`;
+        
+        // CORRECCIÓN AQUÍ: Se arregló el link de Google Maps en el detalle
+        actions.innerHTML = `
+            <a href="https://www.google.com/maps?q=${c.lat},${c.lng}" target="_blank" class="w-full bg-white text-blue-600 border border-blue-200 py-3 rounded-lg font-bold hover:bg-blue-50 text-center block transition mb-2 shadow-sm flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Navegar con Google Maps</a>
+            ${contactBtn}
+        `;
+
+        openModal('modal-detail');
+
+        setTimeout(() => {
+            if(detailMap) { detailMap.remove(); } 
+            detailMap = L.map('detail-map', {zoomControl: false, attributionControl: false}).setView([c.lat, c.lng], 15);
+            L.tileLayer(TILE_LAYER_URL, { maxZoom: 20 }).addTo(detailMap);
+            L.marker([c.lat, c.lng], { icon: createModernIcon(c.status) }).addTo(detailMap);
+        }, 200);
+    }
+
+    // ================= GESTIÓN MIS CARGADORES =================
+    async function loadMyChargers() {
+        if(!currentUser) return;
+        const { data } = await supabase.from('chargers').select('*').eq('user_id', currentUser.id);
+        const container = document.getElementById('my-chargers-container');
+        container.innerHTML = '';
+        
+        if(!data || data.length === 0) {
+            container.innerHTML = '<div class="text-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200"><p class="italic">Aún no has publicado cargadores.</p></div>';
+            return;
+        }
+
+        data.forEach(c => {
+            const item = document.createElement('div');
+            item.className = "bg-white rounded-xl p-4 border border-slate-200 shadow-sm";
+            
+            if(c.status === 'DISPONIBLE') {
+                item.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-bold text-slate-800">${c.title}</h4>
+                        <span class="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded-full">ACTIVO</span>
+                    </div>
+                    <div class="mt-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase block mb-2">Marcar Ocupado Hasta:</label>
+                        <div class="flex gap-2">
+                            <input type="datetime-local" id="date-${c.id}" class="flex-grow border border-slate-200 bg-white p-2 rounded text-sm outline-none focus:border-red-400">
+                            <button onclick="setStatus(${c.id}, 'OCUPADO')" class="bg-red-500 text-white text-xs px-4 py-2 rounded font-bold hover:bg-red-600 transition shadow-sm">BLOQUEAR</button>
+                        </div>
                     </div>
                 `;
-                container.appendChild(card);
-            });
-        }
-
-        function openDetailModal(id) {
-            const c = chargersData.find(item => item.id === id);
-            if(!c) return;
-
-            document.getElementById('detail-title').innerText = c.title;
-            document.getElementById('detail-city').innerText = c.city;
-            document.getElementById('detail-address').innerText = c.address;
-            document.getElementById('detail-type').innerText = c.charger_type;
-            document.getElementById('detail-power').innerText = c.power;
-            document.getElementById('detail-parking-type').innerText = c.parking_type;
-            document.getElementById('detail-price-kwh').innerText = `$${c.price_kwh}/kwh`;
-            document.getElementById('detail-price-parking').innerText = `$${c.price_parking}/h`;
-            document.getElementById('detail-schedule').innerText = c.schedule;
-
-            // Status Banner
-            const banner = document.getElementById('detail-status-banner');
-            if(c.status === 'OCUPADO') {
-                const until = new Date(c.occupied_until).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                banner.className = "bg-red-50 text-red-700 p-3 rounded-lg font-bold text-center border border-red-100 text-xs";
-                banner.innerText = `⛔ OCUPADO HASTA: ${until}`;
             } else {
-                banner.className = "bg-green-50 text-green-700 p-3 rounded-lg font-bold text-center border border-green-100 text-xs";
-                banner.innerText = "✅ DISPONIBLE AHORA";
+                const occupiedDate = new Date(c.occupied_until).toLocaleString([], {dateStyle: 'short', timeStyle: 'short'});
+                item.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-bold text-slate-800">${c.title}</h4>
+                        <span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-1 rounded-full">OCUPADO</span>
+                    </div>
+                    <div class="mt-2 p-3 bg-red-50 rounded-lg border border-red-100 flex justify-between items-center">
+                        <span class="text-xs font-bold text-red-700">Hasta: ${occupiedDate}</span>
+                        <button onclick="setStatus(${c.id}, 'DISPONIBLE')" class="bg-green-500 text-white text-xs px-4 py-2 rounded font-bold hover:bg-green-600 transition shadow-sm">LIBERAR</button>
+                    </div>
+                `;
             }
+            container.appendChild(item);
+        });
+    }
 
-            // Action Buttons
-            const actions = document.getElementById('detail-action-buttons');
-            const contactBtn = currentUser 
-                ? `<a href="tel:${c.profiles?.phone}" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 text-center shadow block transition flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg> Llamar al dueño</a>`
-                : `<button onclick="closeModal('modal-detail');openModal('modal-login')" class="w-full bg-slate-200 text-slate-600 py-3 rounded-lg font-bold hover:bg-slate-300 text-center block transition text-xs">Inicia Sesión para Contactar</button>`;
-            
-            actions.innerHTML = `
-                <a href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}" target="_blank" class="w-full bg-white text-blue-600 border border-blue-200 py-3 rounded-lg font-bold hover:bg-blue-50 text-center block transition mb-2 shadow-sm flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Navegar con Google Maps</a>
-                ${contactBtn}
-            `;
-
-            openModal('modal-detail');
-
-            // Init mini map
-            setTimeout(() => {
-                if(detailMap) { detailMap.remove(); } 
-                detailMap = L.map('detail-map', {zoomControl: false, attributionControl: false}).setView([c.lat, c.lng], 15);
-                // Capa clara también aquí
-                L.tileLayer(TILE_LAYER_URL, { maxZoom: 20 }).addTo(detailMap);
-                L.marker([c.lat, c.lng], { icon: createModernIcon(c.status) }).addTo(detailMap);
-            }, 200);
+    async function setStatus(id, status) {
+        let payload = { status: status };
+        if(status === 'OCUPADO') {
+            const dateVal = document.getElementById(`date-${id}`).value;
+            if(!dateVal) return alert("⚠️ Por favor selecciona fecha y hora.");
+            payload.occupied_until = new Date(dateVal).toISOString();
+        } else {
+            payload.occupied_until = null;
         }
 
-        // ================= GESTIÓN MIS CARGADORES =================
-        async function loadMyChargers() {
-            if(!currentUser) return;
-            const { data } = await supabase.from('chargers').select('*').eq('user_id', currentUser.id);
-            const container = document.getElementById('my-chargers-container');
-            container.innerHTML = '';
-            
-            if(!data || data.length === 0) {
-                container.innerHTML = '<div class="text-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200"><p class="italic">Aún no has publicado cargadores.</p></div>';
-                return;
-            }
+        const { error } = await supabase.from('chargers').update(payload).eq('id', id);
+        if(error) alert(error.message);
+        else { loadMyChargers(); loadChargers(); }
+    }
 
-            data.forEach(c => {
-                const item = document.createElement('div');
-                item.className = "bg-white rounded-xl p-4 border border-slate-200 shadow-sm";
-                
-                if(c.status === 'DISPONIBLE') {
-                    item.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="font-bold text-slate-800">${c.title}</h4>
-                            <span class="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-1 rounded-full">ACTIVO</span>
-                        </div>
-                        <div class="mt-3 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                            <label class="text-[10px] font-bold text-slate-400 uppercase block mb-2">Marcar Ocupado Hasta:</label>
-                            <div class="flex gap-2">
-                                <input type="datetime-local" id="date-${c.id}" class="flex-grow border border-slate-200 bg-white p-2 rounded text-sm outline-none focus:border-red-400">
-                                <button onclick="setStatus(${c.id}, 'OCUPADO')" class="bg-red-500 text-white text-xs px-4 py-2 rounded font-bold hover:bg-red-600 transition shadow-sm">BLOQUEAR</button>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    const occupiedDate = new Date(c.occupied_until).toLocaleString([], {dateStyle: 'short', timeStyle: 'short'});
-                    item.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
-                            <h4 class="font-bold text-slate-800">${c.title}</h4>
-                            <span class="bg-red-100 text-red-800 text-[10px] font-bold px-2 py-1 rounded-full">OCUPADO</span>
-                        </div>
-                        <div class="mt-2 p-3 bg-red-50 rounded-lg border border-red-100 flex justify-between items-center">
-                            <span class="text-xs font-bold text-red-700">Hasta: ${occupiedDate}</span>
-                            <button onclick="setStatus(${c.id}, 'DISPONIBLE')" class="bg-green-500 text-white text-xs px-4 py-2 rounded font-bold hover:bg-green-600 transition shadow-sm">LIBERAR</button>
-                        </div>
-                    `;
-                }
-                container.appendChild(item);
-            });
-        }
-
-        async function setStatus(id, status) {
-            let payload = { status: status };
-            if(status === 'OCUPADO') {
-                const dateVal = document.getElementById(`date-${id}`).value;
-                if(!dateVal) return alert("⚠️ Por favor selecciona fecha y hora.");
-                payload.occupied_until = new Date(dateVal).toISOString();
-            } else {
-                payload.occupied_until = null;
-            }
-
-            const { error } = await supabase.from('chargers').update(payload).eq('id', id);
-            if(error) alert(error.message);
-            else { loadMyChargers(); loadChargers(); }
-        }
-
-        // ================= PUBLICAR =================
-        async function postCharger(e) {
-            e.preventDefault();
-            if(!currentUser) return alert("Inicia sesión");
-            
-            const lat = document.getElementById('offer-lat').value;
-            const lng = document.getElementById('offer-lng').value;
-            if(!lat || !lng) return alert("⚠️ Falta la ubicación. Usa el mapa.");
-
-            const { error } = await supabase.from('chargers').insert([{
-                user_id: currentUser.id,
-                title: document.getElementById('offer-title').value,
-                city: document.getElementById('offer-city').value,
-                address: document.getElementById('offer-address').value,
-                charger_type: document.getElementById('offer-type').value,
-                power: document.getElementById('offer-power').value,
-                price_kwh: document.getElementById('offer-price-kwh').value,
-                price_parking: document.getElementById('offer-price-parking').value,
-                parking_type: document.getElementById('offer-parking-type').value,
-                schedule: document.getElementById('offer-schedule').value,
-                lat: parseFloat(lat), 
-                lng: parseFloat(lng)
-            }]);
-
-            if(error) alert(error.message);
-            else { 
-                alert("¡Cargador publicado!"); 
-                closeModal('modal-offer'); 
-                document.getElementById('form-offer').reset();
-                loadChargers(); 
-            }
-        }
-
-        // ================= UTILIDADES =================
-        function filterChargers() {
-            const term = document.getElementById('city-search').value.toLowerCase();
-            const filtered = chargersData.filter(c => c.city.toLowerCase().includes(term));
-            renderChargers(filtered);
-        }
+    // ================= PUBLICAR =================
+    async function postCharger(e) {
+        e.preventDefault();
+        if(!currentUser) return alert("Inicia sesión");
         
-        function openModal(id) { document.getElementById(id).classList.add('active'); }
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        const lat = document.getElementById('offer-lat').value;
+        const lng = document.getElementById('offer-lng').value;
+        if(!lat || !lng) return alert("⚠️ Falta la ubicación. Usa el mapa.");
 
-        // Auth Events
-        document.getElementById('form-register').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = document.getElementById('reg-name').value;
-            const phone = document.getElementById('reg-phone').value;
-            const email = document.getElementById('reg-email').value;
-            const pass = document.getElementById('reg-pass').value;
-            if(pass !== document.getElementById('reg-pass-confirm').value) return alert("Las contraseñas no coinciden");
+        const { error } = await supabase.from('chargers').insert([{
+            user_id: currentUser.id,
+            title: document.getElementById('offer-title').value,
+            city: document.getElementById('offer-city').value,
+            address: document.getElementById('offer-address').value,
+            charger_type: document.getElementById('offer-type').value,
+            power: document.getElementById('offer-power').value,
+            price_kwh: document.getElementById('offer-price-kwh').value,
+            price_parking: document.getElementById('offer-price-parking').value,
+            parking_type: document.getElementById('offer-parking-type').value,
+            schedule: document.getElementById('offer-schedule').value,
+            lat: parseFloat(lat), 
+            lng: parseFloat(lng)
+        }]);
 
-            const { data, error } = await supabase.auth.signUp({ email, password: pass, options: { data: { full_name: name, phone: phone } } });
-            if(error) alert(error.message); else { alert("Cuenta creada."); closeModal('modal-register'); }
-        });
+        if(error) alert(error.message);
+        else { 
+            alert("¡Cargador publicado!"); 
+            closeModal('modal-offer'); 
+            document.getElementById('form-offer').reset();
+            loadChargers(); 
+        }
+    }
 
-        document.getElementById('form-login').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const { error } = await supabase.auth.signInWithPassword({ email: document.getElementById('login-email').value, password: document.getElementById('login-pass').value });
-            if(error) alert(error.message); else { closeModal('modal-login'); checkSession(); }
-        });
+    // ================= UTILIDADES =================
+    function filterChargers() {
+        const term = document.getElementById('city-search').value.toLowerCase();
+        const filtered = chargersData.filter(c => c.city.toLowerCase().includes(term));
+        renderChargers(filtered);
+    }
+    
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-        document.getElementById('form-offer').addEventListener('submit', postCharger);
-        async function logout() { await supabase.auth.signOut(); window.location.reload(); }
-    </script>
+    // Auth Events
+    document.getElementById('form-register').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('reg-name').value;
+        const phone = document.getElementById('reg-phone').value;
+        const email = document.getElementById('reg-email').value;
+        const pass = document.getElementById('reg-pass').value;
+        if(pass !== document.getElementById('reg-pass-confirm').value) return alert("Las contraseñas no coinciden");
+
+        const { data, error } = await supabase.auth.signUp({ email, password: pass, options: { data: { full_name: name, phone: phone } } });
+        if(error) alert(error.message); else { alert("Cuenta creada."); closeModal('modal-register'); }
+    });
+
+    document.getElementById('form-login').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const { error } = await supabase.auth.signInWithPassword({ email: document.getElementById('login-email').value, password: document.getElementById('login-pass').value });
+        if(error) alert(error.message); else { closeModal('modal-login'); checkSession(); }
+    });
+
+    document.getElementById('form-offer').addEventListener('submit', postCharger);
+    async function logout() { await supabase.auth.signOut(); window.location.reload(); }
+</script>
 </body>
 </html>
