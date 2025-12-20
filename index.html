@@ -87,7 +87,6 @@
     </nav>
 
     <header class="bg-slate-900 text-white text-center py-10 px-4 relative overflow-hidden">
-        <!-- Fondo abstracto sutil -->
         <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
         <div class="absolute inset-0 bg-gradient-to-b from-transparent to-slate-900/80"></div>
         
@@ -125,7 +124,6 @@
             </div>
             
             <div id="chargers-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Skeletons -->
                 <div class="bg-slate-50 h-48 rounded-xl animate-pulse"></div>
                 <div class="bg-slate-50 h-48 rounded-xl animate-pulse"></div>
                 <div class="bg-slate-50 h-48 rounded-xl animate-pulse"></div>
@@ -139,7 +137,6 @@
         </div>
     </div>
 
-    <!-- MODAL DETALLE -->
     <div id="modal-detail" class="modal">
         <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] m-4">
             <div class="bg-slate-900 p-4 flex justify-between items-center text-white">
@@ -196,7 +193,6 @@
         </div>
     </div>
 
-    <!-- MODAL MAPA PRINCIPAL -->
     <div id="modal-main-map" class="modal">
         <div class="bg-white p-2 rounded-2xl w-11/12 h-5/6 shadow-2xl flex flex-col relative overflow-hidden">
             <div class="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow-md border border-slate-100">
@@ -213,7 +209,6 @@
         </div>
     </div>
 
-    <!-- AUTH MODALS -->
     <div id="modal-register" class="modal">
         <div class="bg-white p-8 rounded-2xl w-96 shadow-2xl border-t-4 border-green-500">
             <h2 class="text-2xl font-bold mb-6 text-slate-800">Crear Cuenta</h2>
@@ -241,7 +236,6 @@
         </div>
     </div>
 
-    <!-- MODAL OFRECER -->
     <div id="modal-offer" class="modal">
         <div class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll">
             <h2 class="text-2xl font-bold mb-6 text-slate-800 border-b border-slate-100 pb-3">Ofrecer Cargador</h2>
@@ -313,7 +307,6 @@
         </div>
     </div>
 
-    <!-- MODAL PICKER -->
     <div id="modal-picker" class="modal">
         <div class="bg-white p-6 rounded-2xl w-11/12 md:w-2/3 shadow-2xl border border-slate-100">
             <h3 class="text-lg font-bold mb-4 text-slate-700">Toca en el mapa</h3>
@@ -325,7 +318,6 @@
         </div>
     </div>
 
-    <!-- MODAL MIS CARGADORES -->
     <div id="modal-my-chargers" class="modal">
         <div class="bg-white p-6 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
@@ -346,13 +338,11 @@
     }
     </style>
 
-    <a href="https://wa.me/593998639510?text=Hola,%20quiero%20donarte%201%20usd%20por%20tu%20app" 
+    <a href="https://wa.me/593998639510?text=Hola,%20quiero%20hacer%201%20una%20pregunta" 
        target="_blank" 
        class="float-btn fixed bottom-5 right-5 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-full shadow-xl flex items-center gap-3 border-2 border-white transition hover:scale-110 no-underline">
-       <span class="text-2xl">💵</span>
        <div class="flex flex-col leading-none text-left">
            <span class="text-[10px] font-light opacity-90 uppercase tracking-wide">Soporte</span>
-           <span class="text-sm font-bold">Donar $1 USD</span>
        </div>
     </a>
 
@@ -362,22 +352,22 @@
     const SUPABASE_URL = 'https://yjnlfewsgksdsvsimdjs.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqbmxmZXdzZ2tzZHN2c2ltZGpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NTk4OTgsImV4cCI6MjA3OTMzNTg5OH0.ysDsAdyn3k2i51xnAkJFGKtEWpQ3laxWV7rpjvFIF8E';
     
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // CORRECCIÓN PRINCIPAL: Cambiamos 'supabase' por '_supabase' para evitar conflicto
+    // con la variable global que crea el script de CDN.
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let mainMap, pickerMap, detailMap, pickerMarker, detailMarker;
     let currentUser = null;
     let chargersData = [];
     let itemsLimit = 6;
     let tempPickerCoords = null;
-    let userLocationMarker = null; // Variable para rastrear el marcador del usuario
+    let userLocationMarker = null;
 
-    // URL de Mapa Claro (CartoDB Positron)
     const TILE_LAYER_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
     const TILE_ATTRIBUTION = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>';
 
     document.addEventListener('DOMContentLoaded', () => { checkSession(); loadChargers(); });
 
-    // Helper para crear Icono Moderno CSS
     function createModernIcon(status) {
         return L.divIcon({
             className: 'custom-div-icon',
@@ -392,18 +382,14 @@
     function openMainMap() {
         document.getElementById('modal-main-map').classList.add('active');
         
-        // Esperamos un poco a que la animación del modal termine
         setTimeout(() => {
             if (!mainMap) {
-                // Si el mapa no existe, lo creamos
                 mainMap = L.map('main-map').setView([-0.175709, -78.485581], 13);
                 L.tileLayer(TILE_LAYER_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 20 }).addTo(mainMap);
                 chargersData.forEach(c => addPinToMainMap(c));
             }
             
-            mainMap.invalidateSize(); // Ajusta el tamaño del mapa al contenedor
-            
-            // MAGIA AQUÍ: Llamamos al localizador automáticamente al abrir
+            mainMap.invalidateSize();
             locateUserOnMainMap(); 
             
         }, 200);
@@ -418,7 +404,7 @@
         const statusColor = isOccupied ? 'text-red-600' : 'text-green-600';
         const statusText = isOccupied ? 'OCUPADO' : 'DISPONIBLE';
 
-        // CORRECCIÓN AQUÍ: Se arregló la sintaxis del link de Google Maps
+        // CORRECCIÓN SECUNDARIA: Se arregló el link de Google Maps que estaba roto
         m.bindPopup(`
             <div class="text-center min-w-[240px] p-1">
                 <h3 class="font-bold text-slate-800 text-base mb-1">${c.title}</h3>
@@ -427,7 +413,7 @@
                     <p>⚡ ${c.power} (${c.charger_type})</p>
                     <p>💰 $${c.price_kwh}/kWh</p>
                 </div>
-                <a href="https://www.google.com/maps?q=${c.lat},${c.lng}" target="_blank" class="block mt-2 bg-blue-100 text-white text-xs font-medium uppercase tracking-wider py-2 px-2 rounded hover:bg-blue-700 transition">
+                <a href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}" target="_blank" class="block mt-2 bg-blue-100 text-white text-xs font-medium uppercase tracking-wider py-2 px-2 rounded hover:bg-blue-700 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     Navegar con Google Maps    
                 </a>
@@ -435,19 +421,17 @@
         `);
     }
 
-    // CORRECCIÓN PRINCIPAL: Localizador GPS Mejorado
     function locateUserOnMainMap() {
         if (!navigator.geolocation) {
             console.log("GPS no soportado");
             return;
         }
 
-        // Referencia al botón para mostrar carga (opcional, por si el usuario lo presiona después)
         const btn = document.querySelector('button[onclick="locateUserOnMainMap()"]');
         let originalIcon = "";
         if(btn) {
             originalIcon = btn.innerHTML;
-            btn.innerHTML = '⌛'; // Icono de carga
+            btn.innerHTML = '⌛';
         }
 
         navigator.geolocation.getCurrentPosition(
@@ -455,37 +439,33 @@
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
 
-                // Vuelo suave hacia la ubicación
                 mainMap.flyTo([lat, lng], 15, { duration: 1.5 });
                 
-                // Si ya existe un marcador anterior, lo borramos para no tener duplicados
                 if (userLocationMarker) {
                     mainMap.removeLayer(userLocationMarker);
                 }
 
-                // Crear el PUNTO AZUL brillante
                 userLocationMarker = L.circleMarker([lat, lng], {
-                    color: '#ffffff',      // Borde blanco
-                    weight: 3,             // Grosor del borde
-                    radius: 12,            // Tamaño del punto
-                    fillColor: '#2563eb',  // Relleno Azul
+                    color: '#ffffff',
+                    weight: 3,
+                    radius: 12,
+                    fillColor: '#2563eb',
                     fillOpacity: 1,
-                    className: 'animate-pulse' // Animación de pulso
+                    className: 'animate-pulse'
                 }).addTo(mainMap);
 
-                // Agregar el popup y abrirlo inmediatamente
                 userLocationMarker.bindPopup("<b>📍 Estás aquí</b>").openPopup();
                 
                 if(btn) btn.innerHTML = originalIcon;
             },
             (error) => {
                 console.warn("No se pudo obtener la ubicación automática:", error.message);
-                // No mostramos alerta intrusiva si falla automáticamente, solo restauramos el botón
                 if(btn) btn.innerHTML = originalIcon;
             },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     }
+
     function openPickerMap() {
         document.getElementById('modal-picker').classList.add('active');
         setTimeout(() => {
@@ -530,13 +510,14 @@
                 document.getElementById('location-status').innerText = "Error GPS, usa el mapa manual";
                 alert("No pudimos obtener tu ubicación GPS. Verifica permisos.");
             },
-            { enableHighAccuracy: true } // Importante para formularios
+            { enableHighAccuracy: true }
         );
     }
 
     // ================= UI & AUTH =================
     async function checkSession() {
-        const { data: { session } } = await supabase.auth.getSession();
+        // CORRECCIÓN: Usamos _supabase
+        const { data: { session } } = await _supabase.auth.getSession();
         currentUser = session?.user || null;
         updateUI();
     }
@@ -547,7 +528,8 @@
         const nameDisplay = document.getElementById('user-display-name');
 
         if (currentUser) {
-            const { data } = await supabase.from('profiles').select('full_name').eq('id', currentUser.id).single();
+            // CORRECCIÓN: Usamos _supabase
+            const { data } = await _supabase.from('profiles').select('full_name').eq('id', currentUser.id).single();
             if(data) {
                 nameDisplay.innerText = `Hola, ${data.full_name}`;
                 nameDisplay.classList.remove('hidden');
@@ -572,7 +554,8 @@
 
     // ================= DATOS (CARGADORES) =================
     async function loadChargers() {
-        const { data, error } = await supabase.from('chargers').select('*, profiles(full_name, phone)');
+        // CORRECCIÓN: Usamos _supabase
+        const { data, error } = await _supabase.from('chargers').select('*, profiles(full_name, phone)');
         if(error) return console.error(error);
         chargersData = data || [];
         document.getElementById('count-chargers').innerText = `${chargersData.length} activos`;
@@ -580,7 +563,6 @@
         
         if(mainMap) {
             mainMap.eachLayer((layer) => { 
-                // Eliminar solo marcadores de cargadores, no el del usuario
                 if(layer instanceof L.Marker && layer !== userLocationMarker) mainMap.removeLayer(layer); 
             });
             chargersData.forEach(c => addPinToMainMap(c));
@@ -599,11 +581,10 @@
                 <h3 class="text-lg font-bold text-slate-700">No hay cargadores aquí</h3>
                 <p class="text-slate-500 text-sm">Intenta otra ciudad o sé el primero.</p>
             </div>`;
-        btnContainer.classList.add('hidden'); // Ocultar botón si no hay datos
+        btnContainer.classList.add('hidden');
         return;
     }
 
-    // AQUI ESTA LA MAGIA: Cortamos la lista según el límite actual
     const visibleItems = list.slice(0, itemsLimit);
 
     visibleItems.forEach(c => {
@@ -648,11 +629,10 @@
         container.appendChild(card);
     });
 
-    // Lógica para mostrar u ocultar el botón "Ver más"
     if (itemsLimit >= list.length) {
-        btnContainer.classList.add('hidden'); // Ya mostramos todos
+        btnContainer.classList.add('hidden');
     } else {
-        btnContainer.classList.remove('hidden'); // Aún faltan items
+        btnContainer.classList.remove('hidden');
     }
 }
     function openDetailModal(id) {
@@ -684,9 +664,9 @@
             ? `<a href="tel:${c.profiles?.phone}" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 text-center shadow block transition flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg> Llamar al dueño</a>`
             : `<button onclick="closeModal('modal-detail');openModal('modal-login')" class="w-full bg-slate-200 text-slate-600 py-3 rounded-lg font-bold hover:bg-slate-300 text-center block transition text-xs">Inicia Sesión para Contactar</button>`;
         
-        // CORRECCIÓN AQUÍ: Se arregló el link de Google Maps en el detalle
+        // CORRECCIÓN SECUNDARIA: Link de Google Maps arreglado
         actions.innerHTML = `
-            <a href="https://www.google.com/maps?q=${c.lat},${c.lng}" target="_blank" class="w-full bg-white text-blue-600 border border-blue-200 py-3 rounded-lg font-bold hover:bg-blue-50 text-center block transition mb-2 shadow-sm flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Navegar con Google Maps</a>
+            <a href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}" target="_blank" class="w-full bg-white text-blue-600 border border-blue-200 py-3 rounded-lg font-bold hover:bg-blue-50 text-center block transition mb-2 shadow-sm flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Navegar con Google Maps</a>
             ${contactBtn}
         `;
 
@@ -703,7 +683,8 @@
     // ================= GESTIÓN MIS CARGADORES =================
     async function loadMyChargers() {
         if(!currentUser) return;
-        const { data } = await supabase.from('chargers').select('*').eq('user_id', currentUser.id);
+        // CORRECCIÓN: Usamos _supabase
+        const { data } = await _supabase.from('chargers').select('*').eq('user_id', currentUser.id);
         const container = document.getElementById('my-chargers-container');
         container.innerHTML = '';
         
@@ -757,7 +738,8 @@
             payload.occupied_until = null;
         }
 
-        const { error } = await supabase.from('chargers').update(payload).eq('id', id);
+        // CORRECCIÓN: Usamos _supabase
+        const { error } = await _supabase.from('chargers').update(payload).eq('id', id);
         if(error) alert(error.message);
         else { loadMyChargers(); loadChargers(); }
     }
@@ -771,7 +753,8 @@
         const lng = document.getElementById('offer-lng').value;
         if(!lat || !lng) return alert("⚠️ Falta la ubicación. Usa el mapa.");
 
-        const { error } = await supabase.from('chargers').insert([{
+        // CORRECCIÓN: Usamos _supabase
+        const { error } = await _supabase.from('chargers').insert([{
             user_id: currentUser.id,
             title: document.getElementById('offer-title').value,
             city: document.getElementById('offer-city').value,
@@ -796,18 +779,15 @@
     }
 
     // ================= UTILIDADES =================
-    // Agrega esta función nueva
     function loadMore() {
-        itemsLimit += 10; // Suma 10 más
-        // Volvemos a renderizar la lista actual (ya sea filtrada o completa)
+        itemsLimit += 10;
         const term = document.getElementById('city-search').value.toLowerCase();
         const filtered = chargersData.filter(c => c.city.toLowerCase().includes(term));
         renderChargers(filtered);
     }
 
-    // Modifica esta función existente (para reiniciar a 10 cuando busques)
     function filterChargers() {
-        itemsLimit = 10; // Reinicia el límite al buscar
+        itemsLimit = 10;
         const term = document.getElementById('city-search').value.toLowerCase();
         const filtered = chargersData.filter(c => c.city.toLowerCase().includes(term));
         renderChargers(filtered);
@@ -825,18 +805,21 @@
         const pass = document.getElementById('reg-pass').value;
         if(pass !== document.getElementById('reg-pass-confirm').value) return alert("Las contraseñas no coinciden");
 
-        const { data, error } = await supabase.auth.signUp({ email, password: pass, options: { data: { full_name: name, phone: phone } } });
+        // CORRECCIÓN: Usamos _supabase
+        const { data, error } = await _supabase.auth.signUp({ email, password: pass, options: { data: { full_name: name, phone: phone } } });
         if(error) alert(error.message); else { alert("Cuenta creada."); closeModal('modal-register'); }
     });
 
     document.getElementById('form-login').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const { error } = await supabase.auth.signInWithPassword({ email: document.getElementById('login-email').value, password: document.getElementById('login-pass').value });
+        // CORRECCIÓN: Usamos _supabase
+        const { error } = await _supabase.auth.signInWithPassword({ email: document.getElementById('login-email').value, password: document.getElementById('login-pass').value });
         if(error) alert(error.message); else { closeModal('modal-login'); checkSession(); }
     });
 
     document.getElementById('form-offer').addEventListener('submit', postCharger);
-    async function logout() { await supabase.auth.signOut(); window.location.reload(); }
+    // CORRECCIÓN: Usamos _supabase
+    async function logout() { await _supabase.auth.signOut(); window.location.reload(); }
 </script>
 </body>
 </html>
