@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EvCar - Red de Carga Eléctrica</title>
+    <link rel="icon" href="icono.png" type="image/x-icon">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- Plugin para botón de ubicación -->
@@ -255,6 +256,7 @@
             <form id="form-register" class="space-y-4">
                 <input type="text" id="reg-name" placeholder="Primer Nombre" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
                 <input type="tel" id="reg-phone" placeholder="Número Celular" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
+                <input type="email" id="reg-email" placeholder="Correo Electrónico" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
                 <input type="password" id="reg-pin" placeholder="PIN (4 dígitos)" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
                 <input type="password" id="reg-pin-confirm" placeholder="Confirmar PIN" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
                 <button type="submit" id="btn-register-submit" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition shadow-lg">Registrarse</button>
@@ -267,6 +269,7 @@
         <div class="bg-white p-8 rounded-2xl w-96 shadow-2xl border-t-4 border-slate-800">
             <h2 class="text-2xl font-bold mb-6 text-slate-800">Bienvenido</h2>
             <form id="form-login" class="space-y-4">
+                <input type="email" id="login-email" placeholder="Correo electrónico" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none" required>
                 <input type="password" id="login-pin" placeholder="PIN (4 dígitos)" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
                 <button type="submit" id="btn-login-submit" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-black transition shadow-lg">Iniciar Sesión</button>
             </form>
@@ -526,6 +529,13 @@
 
         const mapsUrl = c.link ? c.link : `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}`;
 
+        const phone = c.profiles?.phone;
+        const contactBtn = (currentUser && phone)
+            ? `<a href="tel:${escapeHtml(phone)}" class="mt-2 w-full flex items-center justify-center gap-1 bg-green-600 hover:bg-green-700 !text-white font-semibold text-[10px] uppercase tracking-wider py-2 px-3 rounded-lg transition shadow-sm">📞 Llamar al dueño</a>`
+            : (currentUser
+                ? ''
+                : `<button onclick="closeModal('modal-main-map');openModal('modal-login')" class="mt-2 w-full bg-slate-200 text-slate-600 font-semibold text-[10px] uppercase tracking-wider py-2 px-3 rounded-lg hover:bg-slate-300 transition">Inicia Sesión para Contactar</button>`);
+
         // Se optimizó el espacio (min-width, p-1) y se forzó el color del botón con !text-white
         m.bindPopup(`
             <div class="text-center p-1" style="min-width: 210px;">
@@ -540,6 +550,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                     Navegar en Maps
                 </a>
+                ${contactBtn}
             </div>
         `);
     }
@@ -963,20 +974,18 @@
     function openModal(id) { document.getElementById(id).classList.add('active'); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
-    // ==== PIN -> credenciales de Supabase ====
+    // ==== PIN -> contraseña de Supabase ====
     // Sufijo fijo que se agrega al PIN para formar la "contraseña" guardada.
     // Ej: PIN 1997 -> contraseña 199799
     const PIN_SUFFIX = '99';
     function pinToPassword(pin) { return pin + PIN_SUFFIX; }
-    // El PIN actúa también como identificador de la cuenta (Supabase exige email),
-    // por lo que cada PIN debe ser único entre todos los usuarios registrados.
-    function pinToEmail(pin) { return `pin${pin}@evcar.app`; }
 
     // Auth Events
     document.getElementById('form-register').addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('reg-name').value.trim();
         const phone = document.getElementById('reg-phone').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
         const pin = document.getElementById('reg-pin').value.trim();
         const pinConfirm = document.getElementById('reg-pin-confirm').value.trim();
 
@@ -987,7 +996,7 @@
         btn.disabled = true; btn.innerText = 'Creando...';
 
         const { data, error } = await _supabase.auth.signUp({
-            email: pinToEmail(pin),
+            email: email,
             password: pinToPassword(pin),
             options: { data: { full_name: name, phone: phone } }
         });
@@ -995,11 +1004,7 @@
         btn.disabled = false; btn.innerText = 'Registrarse';
 
         if(error) {
-            if(error.message && error.message.toLowerCase().includes('already')) {
-                alert("Ese PIN ya está en uso. Elige otro PIN.");
-            } else {
-                alert(error.message);
-            }
+            alert(error.message);
         } else {
             document.getElementById('form-register').reset();
             closeModal('modal-register');
@@ -1009,14 +1014,15 @@
 
     document.getElementById('form-login').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const email = document.getElementById('login-email').value.trim();
         const pin = document.getElementById('login-pin').value.trim();
         if(!/^\d{4}$/.test(pin)) return alert("El PIN debe tener exactamente 4 dígitos numéricos");
 
         const btn = document.getElementById('btn-login-submit');
         btn.disabled = true; btn.innerText = 'Ingresando...';
-        const { error } = await _supabase.auth.signInWithPassword({ email: pinToEmail(pin), password: pinToPassword(pin) });
+        const { error } = await _supabase.auth.signInWithPassword({ email: email, password: pinToPassword(pin) });
         btn.disabled = false; btn.innerText = 'Iniciar Sesión';
-        if(error) alert("PIN incorrecto o cuenta no encontrada"); else { document.getElementById('form-login').reset(); closeModal('modal-login'); checkSession(); }
+        if(error) alert("Correo o PIN incorrecto"); else { document.getElementById('form-login').reset(); closeModal('modal-login'); checkSession(); }
     });
 
     document.getElementById('form-offer').addEventListener('submit', postCharger);
