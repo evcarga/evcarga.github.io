@@ -6,6 +6,8 @@
     <title>EvCar - Red de Carga Eléctrica</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Plugin para botón de ubicación -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     
@@ -14,7 +16,8 @@
         
         /* Mapas */
         #main-map { height: 500px; width: 100%; border-radius: 0.75rem; z-index: 1; }
-        #picker-map { height: 300px; width: 100%; border-radius: 0.5rem; }
+        #picker-map { height: 260px; width: 100%; border-radius: 0.5rem; }
+        #offer-preview-map { height: 140px; width: 100%; border-radius: 0.5rem; margin-top: 0.5rem; display: none; }
         #detail-map { height: 200px; width: 100%; border-radius: 0.5rem; margin-top: 1rem; }
 
         /* Modales */
@@ -28,11 +31,11 @@
         /* Leaflet Font Fix */
         .leaflet-container { font-family: 'Inter', sans-serif; background: #f2efe9; }
         .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,.15); }
+        .leaflet-popup-content { margin: 10px; } /* MARGEN REDUCIDO PARA OCUPAR MENOS VOLUMEN */
         .leaflet-popup-tip { box-shadow: none; }
         .leaflet-control-zoom a { border-radius: 8px !important; }
-        /* Realza un poco los colores del mapa base (calles, agua, parques)
-           para que se sienta más parecido a Google Maps */
-        .leaflet-tile-pane { filter: saturate(1.15) brightness(1.03) contrast(1.03); }
+        /* Ajuste sutil para CartoDB */
+        .leaflet-tile-pane { filter: saturate(1.05) brightness(1.02) contrast(1.02); }
         
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
@@ -41,16 +44,17 @@
 
         /* ESTILOS PARA MARCADORES PERSONALIZADOS (Pines Modernos) */
         .marker-pin {
-            width: 30px;
-            height: 30px;
+            width: 34px;
+            height: 34px;
             border-radius: 50% 50% 50% 0;
             background: #16a34a; /* Green default */
             position: absolute;
             transform: rotate(-45deg);
             left: 50%;
             top: 50%;
-            margin: -15px 0 0 -15px;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+            margin: -20px 0 0 -17px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            border: 2px solid #ffffff;
         }
         .marker-pin::after {
             content: '';
@@ -60,19 +64,51 @@
             background: #fff;
             position: absolute;
             border-radius: 50%;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.2);
         }
         .marker-pin.occupied {
             background: #dc2626; /* Red */
         }
-        /* Animación de pulso para el marcador */
         .leaflet-div-icon {
             background: transparent;
             border: none;
         }
 
-        /* Badge de fuente de datos (comunidad / oficial) */
-        .badge-community {
-            background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;
+        /* Marcador de ubicación del usuario: pin rojo con coche */
+        .user-location-pin {
+            width: 36px;
+            height: 36px;
+            border-radius: 50% 50% 50% 0;
+            background: #ef4444; /* Rojo */
+            position: absolute;
+            transform: rotate(-45deg);
+            left: 50%;
+            top: 50%;
+            margin: -22px 0 0 -18px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            border: 2px solid #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .user-location-pin::after {
+            content: '';
+            width: 16px;
+            height: 16px;
+            background: white;
+            position: absolute;
+            border-radius: 50%;
+            box-shadow: inset 0 0 4px rgba(0,0,0,0.2);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+        .user-location-pin svg {
+            transform: rotate(45deg);
+            width: 20px;
+            height: 20px;
+            color: #ef4444;
+            z-index: 1;
         }
     </style>
 </head>
@@ -105,20 +141,16 @@
             <p class="text-lg md:text-xl text-slate-300 mb-6 font-light">Red colaborativa de puntos de carga eléctrica.</p>
             
             <div class="bg-white/10 backdrop-blur-sm p-2 rounded-2xl border border-white/10 shadow-2xl flex w-full max-w-lg mx-auto mb-6 transform transition hover:scale-[1.01]">
-    
-    <input type="text" id="city-search" placeholder="¿En qué ciudad?" class="flex-grow p-3 bg-transparent text-white outline-none placeholder-slate-400 min-w-0" oninput="filterChargers()">
-    
-    <button onclick="filterChargers()" class="bg-green-500 hover:bg-green-400 text-slate-900 px-4 sm:px-6 py-2 rounded-xl font-bold transition shadow-lg shrink-0 ml-2">
-        Buscar
-    </button>
-    
-</div>
+                <input type="text" id="city-search" placeholder="Escribir ciudad o punto de referencia" class="flex-grow p-3 bg-transparent text-white outline-none placeholder-slate-400 min-w-0" oninput="filterChargers()">
+                <button onclick="filterChargers()" class="bg-green-500 hover:bg-green-400 text-slate-900 px-4 sm:px-6 py-2 rounded-xl font-bold transition shadow-lg shrink-0 ml-2">
+                    Buscar
+                </button>
+            </div>
 
             <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
                 <button onclick="openMainMap()" class="bg-white text-slate-900 px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-slate-50 transition flex items-center gap-2 w-full sm:w-auto justify-center ring-1 ring-slate-200">
                     🗺️ Abrir Mapa
                 </button>
-
                 <button id="btn-offer-hero" onclick="openModal('modal-offer')" class="hidden bg-yellow-400 text-yellow-900 px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-yellow-300 transition flex items-center gap-2 w-full sm:w-auto justify-center border border-yellow-500/30">
                     ⚡ Ofrecer Cargador
                 </button>
@@ -147,6 +179,7 @@
         </div>
     </div>
 
+    <!-- Modales de detalle y registro se mantienen igual -->
     <div id="modal-detail" class="modal" onclick="if(event.target===this) closeModal('modal-detail')">
         <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] m-4">
             <div class="bg-slate-900 p-4 flex justify-between items-center text-white">
@@ -203,6 +236,7 @@
         </div>
     </div>
 
+    <!-- Modal de mapa principal -->
     <div id="modal-main-map" class="modal">
         <div class="bg-white p-2 rounded-2xl w-11/12 h-5/6 shadow-2xl flex flex-col relative overflow-hidden">
             <div class="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow-md border border-slate-100">
@@ -212,10 +246,6 @@
             <button onclick="closeModal('modal-main-map')" class="absolute top-4 right-4 z-[400] bg-white text-slate-500 hover:text-red-500 font-bold p-2 rounded-full shadow-md transition w-10 h-10 flex items-center justify-center">✕</button>
             
             <div id="main-map" class="flex-grow w-full h-full rounded-xl"></div>
-            
-            <button onclick="locateUserOnMainMap()" class="absolute bottom-6 right-6 z-[400] bg-slate-900 text-white p-3 rounded-full shadow-xl hover:scale-110 transition flex items-center justify-center w-12 h-12 border border-slate-700" title="Mi ubicación">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
-            </button>
         </div>
     </div>
 
@@ -225,9 +255,8 @@
             <form id="form-register" class="space-y-4">
                 <input type="text" id="reg-name" placeholder="Primer Nombre" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
                 <input type="tel" id="reg-phone" placeholder="Número Celular" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
-                <input type="email" id="reg-email" placeholder="Correo Electrónico" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
-                <input type="password" id="reg-pass" placeholder="Contraseña" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required minlength="6">
-                <input type="password" id="reg-pass-confirm" placeholder="Confirmar Contraseña" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required minlength="6">
+                <input type="password" id="reg-pin" placeholder="PIN (4 dígitos)" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
+                <input type="password" id="reg-pin-confirm" placeholder="Confirmar PIN" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
                 <button type="submit" id="btn-register-submit" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition shadow-lg">Registrarse</button>
             </form>
             <button onclick="closeModal('modal-register')" class="mt-4 text-sm text-slate-400 w-full text-center hover:text-slate-600">Cancelar</button>
@@ -238,8 +267,7 @@
         <div class="bg-white p-8 rounded-2xl w-96 shadow-2xl border-t-4 border-slate-800">
             <h2 class="text-2xl font-bold mb-6 text-slate-800">Bienvenido</h2>
             <form id="form-login" class="space-y-4">
-                <input type="email" id="login-email" placeholder="Correo electrónico" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none" required>
-                <input type="password" id="login-pass" placeholder="Contraseña" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none" required>
+                <input type="password" id="login-pin" placeholder="PIN (4 dígitos)" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
                 <button type="submit" id="btn-login-submit" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-black transition shadow-lg">Iniciar Sesión</button>
             </form>
             <button onclick="closeModal('modal-login')" class="mt-4 text-sm text-slate-400 w-full text-center hover:text-slate-600">Cancelar</button>
@@ -277,6 +305,7 @@
                     </div>
                     <input type="hidden" id="offer-lat"><input type="hidden" id="offer-lng">
                     <p id="location-status" class="text-xs text-slate-500 mt-2 text-center italic">Coordenadas pendientes...</p>
+                    <div id="offer-preview-map"></div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -324,7 +353,12 @@
 
     <div id="modal-picker" class="modal">
         <div class="bg-white p-6 rounded-2xl w-11/12 md:w-2/3 shadow-2xl border border-slate-100">
-            <h3 class="text-lg font-bold mb-4 text-slate-700">Toca en el mapa</h3>
+            <h3 class="text-lg font-bold mb-3 text-slate-700">Toca en el mapa</h3>
+            <div class="flex gap-2 mb-3">
+                <input type="text" id="picker-search" placeholder="Escribir ciudad o punto de referencia" class="flex-grow border border-slate-200 bg-slate-50 p-2.5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-500" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPickerLocation();}">
+                <button type="button" onclick="searchPickerLocation()" class="bg-slate-800 text-white px-4 rounded-lg text-sm font-medium hover:bg-slate-700 transition shrink-0">Buscar</button>
+                <button type="button" onclick="locateUserOnPicker()" class="bg-blue-600 text-white px-4 rounded-lg text-sm font-medium hover:bg-blue-700 transition shrink-0 whitespace-nowrap">📍 Ubicarme</button>
+            </div>
             <div id="picker-map" class="rounded-xl shadow-inner border border-slate-200 mb-4"></div>
             <div class="flex justify-end gap-3">
                 <button onclick="closeModal('modal-picker')" class="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg transition">Cancelar</button>
@@ -343,16 +377,6 @@
         </div>
     </div>
 
-
-    <style>
-    .float-btn { animation: float 3s ease-in-out infinite; z-index: 9999; }
-    @keyframes float { 
-        0% { transform: translateY(0px); } 
-        50% { transform: translateY(-6px); } 
-        100% { transform: translateY(0px); } 
-    }
-    </style>
-
     <a href="https://wa.me/593980407829?text=Hola,%20quiero%20hacer%20una%20pregunta" 
        target="_blank" 
        class="float-btn fixed bottom-5 right-5 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-full shadow-xl flex items-center gap-3 border-2 border-white transition hover:scale-110 no-underline">
@@ -362,13 +386,12 @@
     </a>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
 <script>
     // ================= CONFIGURACIÓN =================
     const SUPABASE_URL = 'https://yjnlfewsgksdsvsimdjs.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqbmxmZXdzZ2tzZHN2c2ltZGpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NTk4OTgsImV4cCI6MjA3OTMzNTg5OH0.ysDsAdyn3k2i51xnAkJFGKtEWpQ3laxWV7rpjvFIF8E';
     
-    // CORRECCIÓN PRINCIPAL: Cambiamos 'supabase' por '_supabase' para evitar conflicto
-    // con la variable global que crea el script de CDN.
     const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let mainMap, pickerMap, detailMap, pickerMarker, detailMarker;
@@ -378,13 +401,9 @@
     let tempPickerCoords = null;
     let userLocationMarker = null;
 
-    // Teselas estándar de OpenStreetMap: gratis, sin API key, y con la
-    // paleta de colores (calles claras, agua azul, zonas verdes) que se
-    // parece más al estilo clásico de Google Maps que el gris minimalista
-    // de Esri que usábamos antes.
-    const TILE_BASE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-    const TILE_ATTRIBUTION = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-    const TILE_MAX_ZOOM = 19;
+    const TILE_BASE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=cb1_2nsz_1_2e810fa90ac9971bc0c7f6b9';
+    const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
+    const TILE_MAX_ZOOM = 20;
     const TILE_MAX_NATIVE_ZOOM = 19;
 
     function addBaseTiles(map) {
@@ -392,15 +411,13 @@
             attribution: TILE_ATTRIBUTION,
             maxZoom: TILE_MAX_ZOOM,
             maxNativeZoom: TILE_MAX_NATIVE_ZOOM,
-            subdomains: 'abc'
+            subdomains: 'abcd',
+            detectRetina: true
         }).addTo(map);
     }
 
     document.addEventListener('DOMContentLoaded', () => { checkSession(); loadChargers(); requestInitialLocation(); });
 
-    // Pide la ubicación apenas carga la página (no solo cuando el usuario
-    // pulsa el botón de localizar). Si el navegador la niega o tarda, no
-    // pasa nada: el mapa simplemente abre con la vista general de Ecuador.
     let userCoords = null;
     let locationRequested = false;
     function requestInitialLocation() {
@@ -409,7 +426,6 @@
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                // Si el mapa ya estaba abierto y centrado en la vista general, lo recentramos suavemente.
                 if (mainMap && !mainMap.__centeredOnUser) {
                     mainMap.__centeredOnUser = true;
                     mainMap.flyTo([userCoords.lat, userCoords.lng], 14, { duration: 1.2 });
@@ -423,39 +439,32 @@
 
     function placeUserMarker(map, coords) {
         if (userLocationMarker) map.removeLayer(userLocationMarker);
-        userLocationMarker = L.circleMarker([coords.lat, coords.lng], {
-            color: '#ffffff',
-            weight: 3,
-            radius: 12,
-            fillColor: '#2563eb',
-            fillOpacity: 1,
-            className: 'animate-pulse'
-        }).addTo(map);
+        const userIcon = L.divIcon({
+            className: 'user-location-pin-container',
+            html: `<div class="user-location-pin">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v7.5c0 .83.67 1.5 1.5 1.5S6 20.33 6 19.5V19h12v.5c0 .83.67 1.5 1.5 1.5s1.5-.67 1.5-1.5V12l-2.08-5.99zM7.5 16.5C6.67 16.5 6 15.83 6 15s.67-1.5 1.5-1.5S9 14.17 9 15s-.67 1.5-1.5 1.5zm9 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+                        <path d="M0 0h24v24H0z" fill="none"/>
+                    </svg>
+                   </div>`,
+            iconSize: [36, 42],
+            iconAnchor: [18, 42],
+            popupAnchor: [0, -40]
+        });
+        userLocationMarker = L.marker([coords.lat, coords.lng], { icon: userIcon, zIndexOffset: 1000 }).addTo(map);
         userLocationMarker.bindPopup("<b>📍 Estás aquí</b>");
     }
 
-    // ================= UTILIDADES DE SEGURIDAD / FORMATO =================
-    // Evita que texto ingresado por usuarios (título, ciudad, dirección, horario...)
-    // rompa el HTML o inyecte scripts cuando se inserta con innerHTML.
     function escapeHtml(str) {
         if (str === null || str === undefined) return '';
-        return String(str)
-            .replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')
-            .replaceAll('"', '&quot;')
-            .replaceAll("'", '&#039;');
+        return String(str).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
     }
 
-    // Formatea precios: si no hay dato, muestra "Gratis / N-D" en vez de "$null"
     function formatPrice(value, suffix) {
-        if (value === null || value === undefined || value === '' || isNaN(parseFloat(value))) {
-            return 'N/D';
-        }
+        if (value === null || value === undefined || value === '' || isNaN(parseFloat(value))) return 'N/D';
         return `$${parseFloat(value).toFixed(2)}${suffix || ''}`;
     }
 
-    // Quita tildes para que la búsqueda "Quito" también encuentre "Baños", "Cañar", etc.
     function normalize(str) {
         return (str || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     }
@@ -463,10 +472,13 @@
     function createModernIcon(status) {
         return L.divIcon({
             className: 'custom-div-icon',
-            html: `<div style="background-color:${status === 'OCUPADO' ? '#ef4444' : '#16a34a'}" class="marker-pin"></div>`,
-            iconSize: [30, 42],
-            iconAnchor: [15, 42],
-            popupAnchor: [0, -35]
+            html: `<div class="marker-pin ${status === 'OCUPADO' ? 'occupied' : ''}"></div>`,
+            iconSize: [34, 42],
+            iconAnchor: [17, 42],
+            popupAnchor: [0, -40],
+            shadowUrl: null,
+            shadowSize: null,
+            shadowAnchor: null
         });
     }
 
@@ -481,15 +493,28 @@
                 mainMap = L.map('main-map').setView(center, zoom);
                 mainMap.__centeredOnUser = !!userCoords;
                 addBaseTiles(mainMap);
+                
+                L.control.scale({ position: 'bottomleft', metric: true, imperial: false }).addTo(mainMap);
+                
+                if (typeof L.control.locate === 'function') {
+                    L.control.locate({
+                        position: 'bottomright',
+                        strings: { title: 'Mi ubicación' },
+                        locateOptions: { enableHighAccuracy: true, maxZoom: 16 },
+                        flyTo: true,
+                        drawCircle: true,
+                        showPopup: true
+                    }).addTo(mainMap);
+                }
+
                 chargersData.forEach(c => addPinToMainMap(c));
                 if (userCoords) placeUserMarker(mainMap, userCoords);
             }
-            
             mainMap.invalidateSize();
-            
         }, 200);
     }
 
+    // ========= AQUÍ ESTÁ LA FUNCIÓN OPTIMIZADA DEL POPUP =========
     function addPinToMainMap(c) {
         if(!c.lat || !c.lng) return;
         
@@ -499,53 +524,39 @@
         const statusColor = isOccupied ? 'text-red-600' : 'text-green-600';
         const statusText = isOccupied ? 'OCUPADO' : 'DISPONIBLE';
 
-        // Usar el link de Google Maps si existe, sino fallback a lat/lng
         const mapsUrl = c.link ? c.link : `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}`;
 
+        // Se optimizó el espacio (min-width, p-1) y se forzó el color del botón con !text-white
         m.bindPopup(`
-            <div class="text-center min-w-[240px] p-1">
-                <h3 class="font-bold text-slate-800 text-base mb-1">${escapeHtml(c.title)}</h3>
-                <p class="text-xs font-bold ${statusColor} mb-2 uppercase tracking-wide">${statusText}</p>
-                <div class="text-left text-xs bg-slate-50 p-2 rounded space-y-1 border border-green-500 text-slate-600">
-                    <p>⚡ ${escapeHtml(c.power)} (${escapeHtml(c.charger_type)})</p>
-                    <p>💰 ${formatPrice(c.price_kwh, '/kWh')}</p>
+            <div class="text-center p-1" style="min-width: 210px;">
+                <h3 class="font-bold text-slate-800 text-base mb-1 leading-tight">${escapeHtml(c.title)}</h3>
+                <p class="text-[10px] font-bold ${statusColor} mb-2 uppercase tracking-wide">${statusText}</p>
+                <div class="text-left text-xs bg-slate-50 p-2 rounded-lg space-y-1 border border-slate-200 text-slate-600">
+                    <p class="flex items-center gap-2"><span class="text-sm">⚡</span> <span>${escapeHtml(c.power)} (${escapeHtml(c.charger_type)})</span></p>
+                    <p class="flex items-center gap-2"><span class="text-sm">💰</span> <span>${formatPrice(c.price_kwh, '/kWh')}</span></p>
+                    ${c.price_parking ? `<p class="flex items-center gap-2"><span class="text-sm">🅿️</span> <span>${formatPrice(c.price_parking, '/h')}</span></p>` : ''}
                 </div>
-                <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" class="block mt-2 bg-blue-600 text-white text-xs font-medium uppercase tracking-wider py-2 px-2 rounded hover:bg-blue-700 transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    Navegar con Google Maps    
+                <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" class="mt-2 w-full flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 !text-white font-semibold text-[10px] uppercase tracking-wider py-2 px-3 rounded-lg transition shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    Navegar en Maps
                 </a>
             </div>
         `);
     }
 
     function locateUserOnMainMap() {
-        if (!navigator.geolocation) {
-            alert("Tu navegador no soporta geolocalización.");
-            return;
-        }
-
-        const btn = document.querySelector('button[onclick="locateUserOnMainMap()"]');
-        let originalIcon = "";
-        if(btn) {
-            originalIcon = btn.innerHTML;
-            btn.innerHTML = '⌛';
-        }
-
+        if (!navigator.geolocation) { alert("Tu navegador no soporta geolocalización."); return; }
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                mainMap.flyTo([userCoords.lat, userCoords.lng], 15, { duration: 1.5 });
-                mainMap.__centeredOnUser = true;
-                placeUserMarker(mainMap, userCoords);
-                userLocationMarker.openPopup();
-                
-                if(btn) btn.innerHTML = originalIcon;
+                if (mainMap) {
+                    mainMap.flyTo([userCoords.lat, userCoords.lng], 15, { duration: 1.5 });
+                    mainMap.__centeredOnUser = true;
+                    placeUserMarker(mainMap, userCoords);
+                    userLocationMarker.openPopup();
+                }
             },
-            (error) => {
-                console.warn("No se pudo obtener la ubicación automática:", error.message);
-                if(btn) btn.innerHTML = originalIcon;
-                alert("No pudimos obtener tu ubicación. Verifica los permisos del navegador.");
-            },
+            (error) => { console.warn("No se pudo obtener la ubicación automática:", error.message); alert("No pudimos obtener tu ubicación. Verifica los permisos del navegador."); },
             { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
     }
@@ -566,28 +577,76 @@
         }, 200);
     }
 
+    let offerPreviewMap, offerPreviewMarker;
+    function showOfferPreviewMap(lat, lng) {
+        const wrap = document.getElementById('offer-preview-map');
+        wrap.style.display = 'block';
+        setTimeout(() => {
+            if (!offerPreviewMap) {
+                offerPreviewMap = L.map('offer-preview-map', { zoomControl: false, dragging: false, scrollWheelZoom: false }).setView([lat, lng], 15);
+                addBaseTiles(offerPreviewMap);
+            } else {
+                offerPreviewMap.setView([lat, lng], 15);
+            }
+            if (offerPreviewMarker) offerPreviewMap.removeLayer(offerPreviewMarker);
+            offerPreviewMarker = L.marker([lat, lng], { icon: createModernIcon('DISPONIBLE') }).addTo(offerPreviewMap);
+            offerPreviewMap.invalidateSize();
+        }, 150);
+    }
+
     function confirmPickerLocation() {
         if(tempPickerCoords) {
             document.getElementById('offer-lat').value = tempPickerCoords.lat;
             document.getElementById('offer-lng').value = tempPickerCoords.lng;
             document.getElementById('location-status').innerHTML = `<span class="text-green-600 font-bold flex justify-center items-center gap-1">✓ Ubicación Fijada</span>`;
+            showOfferPreviewMap(tempPickerCoords.lat, tempPickerCoords.lng);
             closeModal('modal-picker');
         } else alert("Por favor selecciona un punto en el mapa");
     }
 
+    function locateUserOnPicker() {
+        if (!navigator.geolocation) { alert("GPS no soportado en este dispositivo"); return; }
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                tempPickerCoords = latlng;
+                pickerMap.setView(latlng, 16);
+                if (pickerMarker) pickerMap.removeLayer(pickerMarker);
+                pickerMarker = L.marker(latlng, { icon: createModernIcon('DISPONIBLE') }).addTo(pickerMap);
+            },
+            (err) => { console.error(err); alert("No pudimos obtener tu ubicación GPS. Verifica permisos."); },
+            { enableHighAccuracy: true }
+        );
+    }
+
+    async function searchPickerLocation() {
+        const query = document.getElementById('picker-search').value.trim();
+        if (!query) return;
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`);
+            const results = await res.json();
+            if (!results.length) { alert("No se encontró ese lugar. Prueba con otro nombre."); return; }
+            const latlng = { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
+            tempPickerCoords = latlng;
+            pickerMap.setView(latlng, 15);
+            if (pickerMarker) pickerMap.removeLayer(pickerMarker);
+            pickerMarker = L.marker(latlng, { icon: createModernIcon('DISPONIBLE') }).addTo(pickerMap);
+        } catch (err) {
+            console.error(err);
+            alert("Error buscando el lugar. Intenta de nuevo.");
+        }
+    }
+
     function locateUserForForm() {
         document.getElementById('location-status').innerText = "Buscando satélites...";
-        
-        if (!navigator.geolocation) {
-            document.getElementById('location-status').innerText = "GPS no soportado";
-            return;
-        }
+        if (!navigator.geolocation) { document.getElementById('location-status').innerText = "GPS no soportado"; return; }
 
         navigator.geolocation.getCurrentPosition(
             pos => {
                 document.getElementById('offer-lat').value = pos.coords.latitude;
                 document.getElementById('offer-lng').value = pos.coords.longitude;
                 document.getElementById('location-status').innerHTML = `<span class="text-green-600 font-bold flex justify-center items-center gap-1">✓ GPS Fijado (Precisión: ${Math.round(pos.coords.accuracy)}m)</span>`;
+                showOfferPreviewMap(pos.coords.latitude, pos.coords.longitude);
             }, 
             (err) => {
                 console.error(err);
@@ -651,71 +710,72 @@
     }
 
     function renderChargers(list) {
-    const container = document.getElementById('chargers-list');
-    const btnContainer = document.getElementById('load-more-container');
-    container.innerHTML = '';
+        const container = document.getElementById('chargers-list');
+        const btnContainer = document.getElementById('load-more-container');
+        container.innerHTML = '';
 
-    if(list.length === 0) {
-        container.innerHTML = `
-            <div class="col-span-1 md:col-span-3 text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                <div class="text-5xl mb-4 opacity-50">🌱</div>
-                <h3 class="text-lg font-bold text-slate-700">No hay cargadores aquí</h3>
-                <p class="text-slate-500 text-sm">Intenta otra ciudad o sé el primero.</p>
-            </div>`;
-        btnContainer.classList.add('hidden');
-        return;
+        if(list.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-1 md:col-span-3 text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <div class="text-5xl mb-4 opacity-50">🌱</div>
+                    <h3 class="text-lg font-bold text-slate-700">No hay cargadores aquí</h3>
+                    <p class="text-slate-500 text-sm">Intenta otra ciudad o sé el primero.</p>
+                </div>`;
+            btnContainer.classList.add('hidden');
+            return;
+        }
+
+        const visibleItems = list.slice(0, itemsLimit);
+
+        visibleItems.forEach(c => {
+            const isOccupied = c.status === 'OCUPADO';
+            let statusHTML = isOccupied 
+                ? `<span class="inline-flex items-center bg-red-50 text-red-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-red-100 tracking-wide">OCUPADO</span>`
+                : `<span class="inline-flex items-center bg-green-50 text-green-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-green-100 tracking-wide">DISPONIBLE</span>`;
+
+            const card = document.createElement('div');
+            card.className = 'bg-white rounded-xl shadow-sm border border-green-500 overflow-hidden card-hover transition duration-300 cursor-pointer flex flex-col h-full group hover:border-green-500';
+            card.onclick = (e) => {
+                if(e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+                openDetailModal(c.id);
+            };
+
+            card.innerHTML = `
+                <div class="p-4 flex-grow relative">
+                    <div class="flex justify-between items-start mb-3">
+                        <h4 class="font-bold text-base text-slate-800 leading-tight truncate pr-2 group-hover:text-green-700 transition">${escapeHtml(c.title)}</h4>
+                        ${statusHTML}
+                    </div>
+                    <div class="flex items-center text-slate-500 text-xs mb-4">
+                        <span class="mr-1">📍</span> 
+                        <span class="truncate font-medium">${escapeHtml(c.city)}</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 mb-0">
+                        <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
+                            <p class="text-[10px] text-slate-400 uppercase font-bold">Energía</p>
+                            <p class="font-bold text-slate-700">${formatPrice(c.price_kwh)}</p>
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
+                            <p class="text-[10px] text-slate-400 uppercase font-bold">Potencia</p>
+                            <p class="font-bold text-slate-700 text-sm truncate" title="${escapeHtml(c.power)}">${escapeHtml(c.power)}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-3 border-t border-slate-100 flex justify-center">
+                    <span class="text-xs font-bold text-slate-400 group-hover:text-green-600 transition">Ver detalles completos →</span>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+
+        if (itemsLimit >= list.length) {
+            btnContainer.classList.add('hidden');
+        } else {
+            btnContainer.classList.remove('hidden');
+        }
     }
 
-    const visibleItems = list.slice(0, itemsLimit);
-
-    visibleItems.forEach(c => {
-        const isOccupied = c.status === 'OCUPADO';
-        let statusHTML = isOccupied 
-            ? `<span class="inline-flex items-center bg-red-50 text-red-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-red-100 tracking-wide">OCUPADO</span>`
-            : `<span class="inline-flex items-center bg-green-50 text-green-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-green-100 tracking-wide">DISPONIBLE</span>`;
-
-        const card = document.createElement('div');
-        card.className = 'bg-white rounded-xl shadow-sm border border-green-500 overflow-hidden card-hover transition duration-300 cursor-pointer flex flex-col h-full group hover:border-green-500';
-        card.onclick = (e) => {
-            if(e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
-            openDetailModal(c.id);
-        };
-
-        card.innerHTML = `
-            <div class="p-4 flex-grow relative">
-                <div class="flex justify-between items-start mb-3">
-                    <h4 class="font-bold text-base text-slate-800 leading-tight truncate pr-2 group-hover:text-green-700 transition">${escapeHtml(c.title)}</h4>
-                    ${statusHTML}
-                </div>
-                <div class="flex items-center text-slate-500 text-xs mb-4">
-                    <span class="mr-1">📍</span> 
-                    <span class="truncate font-medium">${escapeHtml(c.city)}</span>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-2 mb-0">
-                    <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold">Energía</p>
-                        <p class="font-bold text-slate-700">${formatPrice(c.price_kwh)}</p>
-                    </div>
-                    <div class="bg-slate-50 p-2 rounded text-center border border-slate-100">
-                        <p class="text-[10px] text-slate-400 uppercase font-bold">Potencia</p>
-                        <p class="font-bold text-slate-700 text-sm truncate" title="${escapeHtml(c.power)}">${escapeHtml(c.power)}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-slate-50 p-3 border-t border-slate-100 flex justify-center">
-                <span class="text-xs font-bold text-slate-400 group-hover:text-green-600 transition">Ver detalles completos →</span>
-            </div>
-        `;
-        container.appendChild(card);
-    });
-
-    if (itemsLimit >= list.length) {
-        btnContainer.classList.add('hidden');
-    } else {
-        btnContainer.classList.remove('hidden');
-    }
-}
     function openDetailModal(id) {
         const c = chargersData.find(item => item.id === id);
         if(!c) return;
@@ -872,6 +932,7 @@
             closeModal('modal-offer'); 
             document.getElementById('form-offer').reset();
             document.getElementById('location-status').innerText = 'Coordenadas pendientes...';
+            document.getElementById('offer-preview-map').style.display = 'none';
             loadChargers(); 
         }
     }
@@ -902,33 +963,60 @@
     function openModal(id) { document.getElementById(id).classList.add('active'); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
+    // ==== PIN -> credenciales de Supabase ====
+    // Sufijo fijo que se agrega al PIN para formar la "contraseña" guardada.
+    // Ej: PIN 1997 -> contraseña 199799
+    const PIN_SUFFIX = '99';
+    function pinToPassword(pin) { return pin + PIN_SUFFIX; }
+    // El PIN actúa también como identificador de la cuenta (Supabase exige email),
+    // por lo que cada PIN debe ser único entre todos los usuarios registrados.
+    function pinToEmail(pin) { return `pin${pin}@evcar.app`; }
+
     // Auth Events
     document.getElementById('form-register').addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('reg-name').value.trim();
         const phone = document.getElementById('reg-phone').value.trim();
-        const email = document.getElementById('reg-email').value.trim();
-        const pass = document.getElementById('reg-pass').value;
-        if(pass !== document.getElementById('reg-pass-confirm').value) return alert("Las contraseñas no coinciden");
-        if(pass.length < 6) return alert("La contraseña debe tener al menos 6 caracteres");
+        const pin = document.getElementById('reg-pin').value.trim();
+        const pinConfirm = document.getElementById('reg-pin-confirm').value.trim();
+
+        if(!/^\d{4}$/.test(pin)) return alert("El PIN debe tener exactamente 4 dígitos numéricos");
+        if(pin !== pinConfirm) return alert("Los PIN no coinciden");
 
         const btn = document.getElementById('btn-register-submit');
         btn.disabled = true; btn.innerText = 'Creando...';
 
-        const { data, error } = await _supabase.auth.signUp({ email, password: pass, options: { data: { full_name: name, phone: phone } } });
+        const { data, error } = await _supabase.auth.signUp({
+            email: pinToEmail(pin),
+            password: pinToPassword(pin),
+            options: { data: { full_name: name, phone: phone } }
+        });
 
         btn.disabled = false; btn.innerText = 'Registrarse';
 
-        if(error) alert(error.message); else { alert("Cuenta creada. Revisa tu correo si se requiere confirmación."); closeModal('modal-register'); }
+        if(error) {
+            if(error.message && error.message.toLowerCase().includes('already')) {
+                alert("Ese PIN ya está en uso. Elige otro PIN.");
+            } else {
+                alert(error.message);
+            }
+        } else {
+            document.getElementById('form-register').reset();
+            closeModal('modal-register');
+            openModal('modal-login');
+        }
     });
 
     document.getElementById('form-login').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const pin = document.getElementById('login-pin').value.trim();
+        if(!/^\d{4}$/.test(pin)) return alert("El PIN debe tener exactamente 4 dígitos numéricos");
+
         const btn = document.getElementById('btn-login-submit');
         btn.disabled = true; btn.innerText = 'Ingresando...';
-        const { error } = await _supabase.auth.signInWithPassword({ email: document.getElementById('login-email').value.trim(), password: document.getElementById('login-pass').value });
+        const { error } = await _supabase.auth.signInWithPassword({ email: pinToEmail(pin), password: pinToPassword(pin) });
         btn.disabled = false; btn.innerText = 'Iniciar Sesión';
-        if(error) alert(error.message); else { closeModal('modal-login'); checkSession(); }
+        if(error) alert("PIN incorrecto o cuenta no encontrada"); else { document.getElementById('form-login').reset(); closeModal('modal-login'); checkSession(); }
     });
 
     document.getElementById('form-offer').addEventListener('submit', postCharger);
