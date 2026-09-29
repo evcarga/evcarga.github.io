@@ -1,3 +1,7 @@
+---
+import { getCities } from '../lib/chargers.js';
+const cities = (await getCities()).slice(0, 18);
+---
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -26,7 +30,7 @@
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="EvCarga Ecuador | Cargadores para Carros Eléctricos">
     <meta name="twitter:description" content="Encuentra puntos de carga para tu auto eléctrico e instala tu cargador desde $20 USD.">
-    <script type="application/ld+json">
+    <script is:inline type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@graph": [
@@ -78,14 +82,14 @@
       ]
     }
     </script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script is:inline src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- Plugin para botón de ubicación -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script is:inline src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
     
-    <style>
+    <style is:global>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         
         /* Mapas */
@@ -552,6 +556,17 @@
         </div>
     </section>
 
+    <!-- Enlaces a páginas por ciudad (ayudan a que Google las encuentre) -->
+    <section class="container mx-auto px-4 mb-12">
+        <h2 class="text-lg font-bold text-slate-800 mb-3">Cargadores por ciudad</h2>
+        <div class="flex flex-wrap gap-2">
+            {cities.map((c) => (
+                <a href={`/cargadores/${c.slug}.html`} class="bg-white border border-slate-200 rounded-full px-4 py-1.5 text-sm hover:border-green-500 hover:text-green-700">Cargadores en {c.name}</a>
+            ))}
+            <a href="/cargadores.html" class="bg-green-50 border border-green-200 text-green-700 rounded-full px-4 py-1.5 text-sm font-bold hover:bg-green-100">Ver todas las ciudades →</a>
+        </div>
+    </section>
+
     <footer class="bg-slate-900 text-slate-400 text-xs text-center py-6 px-4">
         <p>© EvCarga Ecuador · Cargadores para carros eléctricos e instalación de cargadores en Ecuador · <a href="https://wa.me/593980407829" class="text-green-400 hover:underline" target="_blank" rel="noopener">WhatsApp +593 98 040 7829</a> · <a href="privacidad.html" class="text-green-400 hover:underline">Privacidad y Términos</a></p>
     </footer>
@@ -583,9 +598,9 @@
        </div>
     </a>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
-<script>
+    <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script is:inline src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
+<script is:inline>
     // ================= CONFIGURACIÓN =================
     const SUPABASE_URL = 'https://yjnlfewsgksdsvsimdjs.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqbmxmZXdzZ2tzZHN2c2ltZGpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NTk4OTgsImV4cCI6MjA3OTMzNTg5OH0.ysDsAdyn3k2i51xnAkJFGKtEWpQ3laxWV7rpjvFIF8E';
@@ -615,7 +630,14 @@
         }).addTo(map);
     }
 
-    document.addEventListener('DOMContentLoaded', () => { checkSession(); loadChargers(); requestInitialLocation(); loadAds(); logVisit(); });
+    document.addEventListener('DOMContentLoaded', () => {
+        // Filtro inicial desde las páginas por ciudad: /?ciudad=Guayaquil
+        const ciudad = new URLSearchParams(location.search).get('ciudad');
+        if (ciudad) {
+            document.getElementById('city-search').value = ciudad;
+            document.getElementById('chargers-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        checkSession(); loadChargers(); requestInitialLocation(); loadAds(); logVisit(); });
     _supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' && session?.user?.id !== currentUser?.id) {
             currentUser = session.user;
@@ -920,7 +942,7 @@
         if(error) { console.error(error); return; }
         chargersData = data || [];
         document.getElementById('count-chargers').innerText = `${chargersData.length} activos`;
-        renderChargers(chargersData);
+        applyFilter(); // respeta el filtro de ciudad (p. ej. al venir de /cargadores/<ciudad>.html)
         
         if(mainMap) {
             mainMap.eachLayer((layer) => { 

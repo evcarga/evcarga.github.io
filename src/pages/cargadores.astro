@@ -1,0 +1,49 @@
+---
+// Índice de ciudades: /cargadores.html
+import Seo from '../layouts/Seo.astro';
+import { getCities } from '../lib/chargers.js';
+
+const cities = await getCities();
+const total = cities.reduce((s, c) => s + c.chargers.length, 0);
+const byProv = {};
+for (const c of cities) (byProv[c.provincia || 'Otras'] ||= []).push(c);
+const provs = Object.entries(byProv).sort((a, b) => a[0].localeCompare(b[0]));
+const title = 'Cargadores para carros eléctricos por ciudad en Ecuador | EvCarga Ecuador';
+const description = `${total} puntos de carga para autos eléctricos en ${cities.length} ciudades de Ecuador: Quito, Guayaquil, Cuenca, Santo Domingo, Manta, Machala y más.`;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: 'Cargadores para carros eléctricos por ciudad en Ecuador',
+  url: 'https://evcarga.github.io/cargadores.html',
+  inLanguage: 'es-EC',
+  mainEntity: {
+    '@type': 'ItemList',
+    itemListElement: cities.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: `Cargadores en ${c.name}`, url: `https://evcarga.github.io/cargadores/${c.slug}.html` })),
+  },
+};
+---
+<Seo title={title} description={description} path="/cargadores.html" jsonLd={jsonLd}>
+    <header class="bg-slate-900 text-white py-10 px-4">
+        <div class="container mx-auto max-w-4xl">
+            <h1 class="text-3xl md:text-4xl font-extrabold mb-3">Cargadores para carros eléctricos por ciudad</h1>
+            <p class="text-slate-300">{description}</p>
+        </div>
+    </header>
+    <main class="container mx-auto max-w-4xl px-4 mt-8 space-y-6">
+        {provs.map(([prov, list]) => (
+            <section>
+                <h2 class="text-lg font-bold text-slate-800 mb-2">{prov}</h2>
+                <div class="flex flex-wrap gap-2">
+                    {list.map((c) => (
+                        <a href={`/cargadores/${c.slug}.html`} class="bg-white border border-slate-200 rounded-full px-4 py-2 text-sm hover:border-green-500 hover:text-green-700">
+                            Cargadores en {c.name} <span class="text-slate-400">({c.chargers.length})</span>
+                        </a>
+                    ))}
+                </div>
+            </section>
+        ))}
+    </main>
+    <div class="fixed bottom-0 inset-x-0 z-[1000] p-3 bg-gradient-to-t from-white via-white/95 to-transparent">
+        <a href="/" class="block max-w-md mx-auto bg-green-600 text-white text-center py-3.5 rounded-xl font-bold shadow-xl hover:bg-green-700 transition">Ver mapa completo en EvCarga →</a>
+    </div>
+</Seo>
