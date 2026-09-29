@@ -346,7 +346,7 @@
                 </div>
                 <label class="flex items-start gap-2 text-[11px] text-slate-500">
                     <input type="checkbox" required class="mt-0.5 w-4 h-4 shrink-0">
-                    <span class="leading-snug">Acepto la <a href="privacidad.html" target="_blank" class="text-green-700 underline">Política de Privacidad y Términos</a>, incluido mostrar mi teléfono a usuarios registrados.</span>
+                    <span class="leading-snug">Acepto la <a href="privacidad.html" target="_blank" class="text-green-700 underline">Política de Privacidad y Términos</a>, incluido mostrar mi teléfono a usuarios que necesiten cargadores.</span>
                 </label>
                 <button type="submit" id="btn-register-submit" class="w-full bg-green-600 text-white py-2.5 rounded-lg font-bold hover:bg-green-700 transition shadow-lg">Registrarse</button>
             </form>
@@ -469,6 +469,39 @@
                 <button onclick="confirmPickerLocation()" class="px-6 py-2 bg-green-600 text-white rounded-lg font-bold shadow hover:bg-green-700 transition">Confirmar Ubicación</button>
             </div>
         </div>
+    </div>
+
+    <!-- Completar perfil (obligatorio tras entrar con Google o si faltan datos) -->
+    <div id="modal-complete" class="modal">
+        <form id="form-complete" class="bg-white p-5 sm:p-7 rounded-2xl w-full max-w-sm mx-3 shadow-2xl border-t-4 border-green-500 max-h-[94vh] overflow-y-auto space-y-2.5">
+            <h2 class="text-xl font-bold text-slate-800">Completa tu perfil</h2>
+            <p class="text-xs text-slate-500">Solo falta un paso para usar EvCar.</p>
+            <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase mb-0.5">Nombre</label>
+                <input type="text" id="cp-name" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 text-base rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required maxlength="80">
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase mb-0.5">Correo</label>
+                <input type="email" id="cp-email" class="w-full bg-slate-100 border border-slate-200 px-3 py-2 text-base rounded-lg text-slate-500" readonly>
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase mb-0.5">Número celular</label>
+                <input type="tel" id="cp-phone" placeholder="Ej: 0991234567" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 text-base rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required maxlength="20" inputmode="tel">
+            </div>
+            <div class="bg-green-50 border border-green-100 rounded-lg px-3 py-2 text-xs text-slate-600">
+                <p class="font-semibold text-slate-700 mb-1">Recibir novedades (opcional) por:</p>
+                <div class="flex gap-4">
+                    <label class="flex items-center gap-1.5"><input type="checkbox" id="cp-consent-email" class="w-4 h-4"> Correo</label>
+                    <label class="flex items-center gap-1.5"><input type="checkbox" id="cp-consent-whatsapp" class="w-4 h-4"> WhatsApp</label>
+                </div>
+            </div>
+            <label class="flex items-start gap-2 text-[11px] text-slate-500">
+                <input type="checkbox" id="cp-terms" required class="mt-0.5 w-4 h-4 shrink-0">
+                <span class="leading-snug">Acepto la <a href="privacidad.html" target="_blank" class="text-green-700 underline">Política de Privacidad y Términos</a>, incluido mostrar mi teléfono a usuarios que necesiten cargadores.</span>
+            </label>
+            <button type="submit" id="btn-complete-submit" class="w-full bg-green-600 text-white py-2.5 rounded-lg font-bold hover:bg-green-700 transition shadow-lg">Guardar y continuar</button>
+            <button type="button" onclick="logout()" class="w-full text-sm text-slate-400 hover:text-slate-600">Salir</button>
+        </form>
     </div>
 
     <div id="modal-consent" class="modal" onclick="if(event.target===this) closeModal('modal-consent')">
@@ -852,7 +885,7 @@
         const nameDisplay = document.getElementById('user-display-name');
 
         if (currentUser) {
-            const { data } = await _supabase.from('profiles').select('full_name, role, phone, consent_email, consent_whatsapp, consent_updated_at').eq('id', currentUser.id).single();
+            const { data } = await _supabase.from('profiles').select('full_name, role, phone, consent_email, consent_whatsapp, consent_updated_at, terms_accepted_at').eq('id', currentUser.id).single();
             currentProfile = data;
             const displayName = data?.full_name || currentUser.user_metadata?.full_name || currentUser.email;
             if(displayName) {
@@ -867,10 +900,8 @@
             `;
             btnHero.classList.remove('hidden');
             btnHero.classList.add('flex');
-            // Si nunca eligió, preguntar una vez por sesión (p. ej. usuarios que entran con Google)
-            let asked = false;
-            try { asked = sessionStorage.getItem('consent-asked') === '1'; } catch(e) {}
-            if (data && !data.consent_updated_at && !asked) setTimeout(openConsent, 1500);
+            // Google no entrega celular ni aceptación: se piden antes de continuar
+            if (data && (!data.phone || !data.terms_accepted_at)) openCompleteProfile(data);
         } else {
             nameDisplay.classList.add('hidden');
             nav.innerHTML = `
@@ -1180,7 +1211,8 @@
             options: { data: {
                 full_name: name, phone: phone,
                 consent_email: document.getElementById('reg-consent-email').checked,
-                consent_whatsapp: document.getElementById('reg-consent-whatsapp').checked
+                consent_whatsapp: document.getElementById('reg-consent-whatsapp').checked,
+                terms_accepted: true
             } }
         });
 
@@ -1210,6 +1242,40 @@
 
     document.getElementById('form-offer').addEventListener('submit', postCharger);
     async function logout() { await _supabase.auth.signOut(); window.location.reload(); }
+
+    // ================= COMPLETAR PERFIL =================
+    function openCompleteProfile(p) {
+        document.getElementById('cp-name').value = p.full_name || currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || '';
+        document.getElementById('cp-email').value = currentUser.email || '';
+        document.getElementById('cp-phone').value = p.phone || '';
+        document.getElementById('cp-consent-email').checked = !!p.consent_email;
+        document.getElementById('cp-consent-whatsapp').checked = !!p.consent_whatsapp;
+        document.getElementById('cp-terms').checked = false;
+        openModal('modal-complete');
+    }
+
+    document.getElementById('form-complete').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const phone = document.getElementById('cp-phone').value.trim();
+        if (!/^\+?\d{9,15}$/.test(phone.replace(/[\s-]/g, ''))) return alert('Escribe un número celular válido');
+        const now = new Date().toISOString();
+        const payload = {
+            full_name: document.getElementById('cp-name').value.trim(),
+            phone: phone,
+            consent_email: document.getElementById('cp-consent-email').checked,
+            consent_whatsapp: document.getElementById('cp-consent-whatsapp').checked,
+            consent_updated_at: now,
+            terms_accepted_at: now
+        };
+        const btn = document.getElementById('btn-complete-submit');
+        btn.disabled = true; btn.innerText = 'Guardando...';
+        const { error } = await _supabase.from('profiles').update(payload).eq('id', currentUser.id);
+        btn.disabled = false; btn.innerText = 'Guardar y continuar';
+        if (error) return alert(error.message);
+        currentProfile = { ...currentProfile, ...payload };
+        document.getElementById('user-display-name').innerText = `Hola, ${payload.full_name}`;
+        closeModal('modal-complete');
+    });
 
     // ================= PERMISOS DE COMUNICACIÓN =================
     function openConsent() {
