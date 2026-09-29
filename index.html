@@ -615,7 +615,7 @@
         }).addTo(map);
     }
 
-    document.addEventListener('DOMContentLoaded', () => { checkSession(); loadChargers(); requestInitialLocation(); loadAds(); });
+    document.addEventListener('DOMContentLoaded', () => { checkSession(); loadChargers(); requestInitialLocation(); loadAds(); logVisit(); });
     _supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' && session?.user?.id !== currentUser?.id) {
             currentUser = session.user;
@@ -1242,6 +1242,26 @@
 
     document.getElementById('form-offer').addEventListener('submit', postCharger);
     async function logout() { await _supabase.auth.signOut(); window.location.reload(); }
+
+    // ================= VISITAS (anónimas, sin IP) =================
+    async function logVisit() {
+        try {
+            if (sessionStorage.getItem('visit-logged')) return; // una por sesión de navegador
+            sessionStorage.setItem('visit-logged', '1');
+        } catch(e) {}
+        let vid = null;
+        try {
+            vid = localStorage.getItem('evcar-vid');
+            if (!vid) { vid = crypto.randomUUID(); localStorage.setItem('evcar-vid', vid); }
+        } catch(e) {}
+        await _supabase.auth.getSession(); // para asociar la visita si hay sesión
+        await _supabase.from('page_visits').insert([{
+            path: location.pathname.slice(0, 200),
+            referrer: (document.referrer || '').slice(0, 300) || null,
+            visitor_id: vid,
+            device: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+        }]);
+    }
 
     // ================= COMPLETAR PERFIL =================
     function openCompleteProfile(p) {

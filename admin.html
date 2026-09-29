@@ -58,6 +58,7 @@
             <button class="tab-btn active px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="chargers">⚡ Cargadores</button>
             <button class="tab-btn px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="users">👥 Usuarios</button>
             <button class="tab-btn px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="ads">📢 Anuncios</button>
+            <button class="tab-btn px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="visits">📈 Visitas</button>
         </div>
 
         <!-- Cargadores -->
@@ -100,6 +101,30 @@
                 <button onclick="openAdForm()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 shrink-0">+ Nuevo anuncio</button>
             </div>
             <div id="ads-list" class="grid md:grid-cols-2 gap-4"></div>
+        </section>
+
+        <!-- Visitas -->
+        <section id="tab-visits" class="tab hidden bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <div class="flex justify-between items-center mb-4 gap-2">
+                <p class="text-sm text-slate-500">Visitas anónimas a la web (una por sesión de navegador, sin IP).</p>
+                <select id="visits-range" onchange="loadVisits()" class="border border-slate-200 rounded-lg p-2 text-sm">
+                    <option value="7">Últimos 7 días</option><option value="30" selected>Últimos 30 días</option><option value="90">Últimos 90 días</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+                <div class="bg-slate-50 rounded-xl p-3"><p class="lbl">Hoy</p><p id="v-today" class="text-2xl font-bold text-slate-800">–</p></div>
+                <div class="bg-slate-50 rounded-xl p-3"><p class="lbl">Visitas</p><p id="v-total" class="text-2xl font-bold text-slate-800">–</p></div>
+                <div class="bg-slate-50 rounded-xl p-3"><p class="lbl">Visitantes únicos</p><p id="v-unique" class="text-2xl font-bold text-slate-800">–</p></div>
+                <div class="bg-slate-50 rounded-xl p-3"><p class="lbl">Desde celular</p><p id="v-mobile" class="text-2xl font-bold text-slate-800">–</p></div>
+                <div class="bg-slate-50 rounded-xl p-3"><p class="lbl">Con sesión</p><p id="v-logged" class="text-2xl font-bold text-slate-800">–</p></div>
+            </div>
+            <p class="text-sm font-bold text-slate-700 mb-2">Visitas por día</p>
+            <div id="visits-chart" class="relative w-full mb-6"></div>
+            <p class="text-sm font-bold text-slate-700 mb-2">De dónde llegan</p>
+            <table class="w-full text-sm max-w-md">
+                <thead class="text-left text-xs uppercase text-slate-400 border-b"><tr><th class="p-2">Origen</th><th class="p-2 text-right">Visitas</th></tr></thead>
+                <tbody id="referrers-body"></tbody>
+            </table>
         </section>
     </main>
 
@@ -203,7 +228,7 @@
         document.getElementById('btn-logout').classList.remove('hidden');
         document.getElementById('login-view').classList.add('hidden');
         document.getElementById('admin-view').classList.remove('hidden');
-        loadChargers(); loadUsers(); loadAds();
+        loadChargers(); loadUsers(); loadAds(); loadVisits();
     }
 
     function showLogin(msg) {
@@ -235,6 +260,7 @@
     document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
         document.querySelectorAll('.tab').forEach(t => t.classList.toggle('hidden', t.id !== 'tab-' + btn.dataset.tab));
+        if (btn.dataset.tab === 'visits') loadVisits();
     }));
 
     // ================= CARGADORES =================
@@ -418,6 +444,62 @@
         if (!confirm('¿Eliminar este anuncio?')) return;
         const { error } = await _supabase.from('ads').delete().eq('id', id);
         if (error) alert(error.message); else loadAds();
+    }
+
+    // ================= VISITAS =================
+    async function loadVisits() {
+        const days = parseInt(document.getElementById('visits-range').value);
+        const { data, error } = await _supabase.rpc('admin_visit_stats', { p_days: days });
+        if (error) return console.error(error);
+        const pct = n => data.total ? ` <span class="text-sm font-medium text-slate-400">${Math.round(n * 100 / data.total)}%</span>` : '';
+        document.getElementById('v-today').innerText = data.today;
+        document.getElementById('v-total').innerText = data.total;
+        document.getElementById('v-unique').innerText = data.unique;
+        document.getElementById('v-mobile').innerHTML = data.mobile + pct(data.mobile);
+        document.getElementById('v-logged').innerHTML = data.logged + pct(data.logged);
+        renderVisitsChart(data.by_day || []);
+        document.getElementById('referrers-body').innerHTML = (data.referrers || []).map(r =>
+            `<tr class="border-b border-slate-50"><td class="p-2">${escapeHtml(r.source)}</td><td class="p-2 text-right font-semibold">${r.visits}</td></tr>`
+        ).join('') || '<tr><td colspan="2" class="p-4 text-center text-slate-400">Aún no hay visitas</td></tr>';
+    }
+
+    // Barras de una sola serie (visitas/día), con tooltip al pasar el mouse
+    function renderVisitsChart(rows) {
+        const box = document.getElementById('visits-chart');
+        const W = Math.max(box.clientWidth, 300), H = 200, padL = 32, padB = 22, padT = 8;
+        const max = Math.max(1, ...rows.map(r => r.visits));
+        const step = Math.pow(10, Math.floor(Math.log10(max)));
+        const top = Math.ceil(max / step) * step;
+        const n = rows.length || 1, slot = (W - padL) / n, bw = Math.max(2, slot - 2);
+        const y = v => padT + (H - padT - padB) * (1 - v / top);
+        const fmtDay = d => new Date(d + 'T00:00:00').toLocaleDateString([], { day: '2-digit', month: 'short' });
+        const labelEvery = Math.ceil(n / 7);
+        let svg = `<svg width="${W}" height="${H}" role="img" aria-label="Visitas por día">`;
+        [0, 0.5, 1].forEach(f => {
+            const v = Math.round(top * f), yy = y(v);
+            svg += `<line x1="${padL}" x2="${W}" y1="${yy}" y2="${yy}" stroke="#e2e8f0" stroke-width="1"/>`;
+            svg += `<text x="${padL - 6}" y="${yy + 4}" text-anchor="end" font-size="10" fill="#94a3b8">${v}</text>`;
+        });
+        rows.forEach((r, i) => {
+            const x = padL + i * slot + 1, yy = y(r.visits), h = Math.max(0, y(0) - yy);
+            if (h > 0) svg += `<path d="M${x},${y(0)} V${yy + Math.min(4, h)} q0,-4 4,-4 h${Math.max(0, bw - 8)} q4,0 4,4 V${y(0)} Z" fill="#16a34a"/>`;
+            svg += `<rect x="${x - 1}" y="${padT}" width="${slot}" height="${H - padT - padB}" fill="transparent" data-i="${i}" class="vbar"/>`;
+            if (i % labelEvery === 0) svg += `<text x="${x + bw / 2}" y="${H - 6}" text-anchor="middle" font-size="10" fill="#94a3b8">${fmtDay(r.day)}</text>`;
+        });
+        svg += '</svg><div id="visits-tip" class="hidden absolute pointer-events-none bg-slate-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg"></div>';
+        box.innerHTML = svg;
+        const tip = document.getElementById('visits-tip');
+        box.querySelectorAll('.vbar').forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                const r = rows[el.dataset.i];
+                tip.innerHTML = `<b>${fmtDay(r.day)}</b><br>${r.visits} visitas · ${r.unique} únicos`;
+                tip.classList.remove('hidden');
+                const x = parseFloat(el.getAttribute('x'));
+                tip.style.left = Math.min(x, W - 140) + 'px'; tip.style.top = '0px';
+                el.setAttribute('fill', 'rgba(22,163,74,0.08)');
+            });
+            el.addEventListener('mouseleave', () => { tip.classList.add('hidden'); el.setAttribute('fill', 'transparent'); });
+        });
     }
 
     init();
