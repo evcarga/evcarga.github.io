@@ -3,8 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EvCar - Red de Carga Eléctrica</title>
-    <link rel="icon" href="icono.PNG" type="image/x-icon">
+    <title>Cargadores para Carros Eléctricos en Ecuador | Mapa e Instalación - EvCar</title>
+    <meta name="description" content="Encuentra cargadores para carros eléctricos en Ecuador: mapa de electrolineras y puntos de carga en Quito, Guayaquil, Cuenca y todo el país. Instalación de cargadores para autos eléctricos desde $20 USD.">
+    <meta name="keywords" content="cargadores para carros eléctricos, cargadores autos eléctricos Ecuador, electrolineras Ecuador, puntos de carga, instalación de cargadores, instalación cargador carro eléctrico, cargador tipo 2, CCS2, wallbox, Quito, Guayaquil, Cuenca">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#16a34a">
+    <link rel="canonical" href="https://evcarga.github.io/">
+    <meta name="geo.region" content="EC">
+    <meta name="geo.placename" content="Ecuador">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="es_EC">
+    <meta property="og:site_name" content="EvCar">
+    <meta property="og:url" content="https://evcarga.github.io/">
+    <meta property="og:title" content="Cargadores para Carros Eléctricos en Ecuador | EvCar">
+    <meta property="og:description" content="Mapa colaborativo de cargadores y electrolineras para autos eléctricos en Ecuador. Instalación de cargadores desde $20 USD.">
+    <meta property="og:image" content="https://evcarga.github.io/icono.PNG">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Cargadores para Carros Eléctricos en Ecuador | EvCar">
+    <meta name="twitter:description" content="Encuentra puntos de carga para tu auto eléctrico e instala tu cargador desde $20 USD.">
+    <link rel="icon" href="icono.PNG" type="image/png">
+    <link rel="apple-touch-icon" href="icono.PNG">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://evcarga.github.io/#website",
+          "url": "https://evcarga.github.io/",
+          "name": "EvCar",
+          "description": "Red colaborativa de cargadores para carros eléctricos en Ecuador",
+          "inLanguage": "es-EC"
+        },
+        {
+          "@type": "LocalBusiness",
+          "@id": "https://evcarga.github.io/#negocio",
+          "name": "EvCar - Instalación de cargadores para carros eléctricos",
+          "url": "https://evcarga.github.io/",
+          "image": "https://evcarga.github.io/icono.PNG",
+          "telephone": "+593980407829",
+          "priceRange": "Desde $20 USD",
+          "areaServed": { "@type": "Country", "name": "Ecuador" },
+          "address": { "@type": "PostalAddress", "addressCountry": "EC" },
+          "makesOffer": {
+            "@type": "Offer",
+            "priceCurrency": "USD",
+            "price": "20",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Instalación de cargadores para carros eléctricos",
+              "serviceType": "Instalación de cargador para auto eléctrico (Tipo 1, Tipo 2, wallbox, tomacorriente 220V)"
+            }
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            { "@type": "Question", "name": "¿Dónde encuentro cargadores para carros eléctricos en Ecuador?",
+              "acceptedAnswer": { "@type": "Answer", "text": "En EvCar puedes ver en un mapa los cargadores y electrolineras para autos eléctricos en Quito, Guayaquil, Cuenca, Manta, Machala, Santo Domingo y más ciudades, con potencia, tipo de conector, horario y precio." } },
+            { "@type": "Question", "name": "¿Cuánto cuesta la instalación de un cargador para carro eléctrico?",
+              "acceptedAnswer": { "@type": "Answer", "text": "La instalación de cargadores para carros eléctricos con EvCar es desde $20 USD, según el tipo de cargador y la instalación eléctrica. Cotiza por WhatsApp al +593 98 040 7829." } },
+            { "@type": "Question", "name": "¿Qué tipos de conectores de carga hay en Ecuador?",
+              "acceptedAnswer": { "@type": "Answer", "text": "Los más comunes son Tipo 2, Tipo 1, CCS2, CHAdeMO, GB/T y tomacorrientes de 220V 32A. En EvCar cada punto de carga indica su conector y potencia (de 3.7 kW hasta 90 kW)." } },
+            { "@type": "Question", "name": "¿Puedo publicar mi cargador en EvCar?",
+              "acceptedAnswer": { "@type": "Answer", "text": "Sí. Crea tu cuenta gratis (también con Google) y publica tu punto de carga con ubicación, potencia, precio y horario." } }
+          ]
+        }
+      ]
+    }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- Plugin para botón de ubicación -->
@@ -139,7 +206,7 @@
         
         <div class="relative z-10 max-w-3xl mx-auto">
             <h1 class="text-4xl md:text-5xl font-extrabold mb-3 tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-white">Carga sin límites</h1>
-            <p class="text-lg md:text-xl text-slate-300 mb-6 font-light">Red colaborativa de puntos de carga eléctrica.</p>
+            <p class="text-lg md:text-xl text-slate-300 mb-6 font-light">Cargadores para carros eléctricos en Ecuador: red colaborativa de puntos de carga y electrolineras.</p>
             
             <div class="bg-white/10 backdrop-blur-sm p-2 rounded-2xl border border-white/10 shadow-2xl flex w-full max-w-lg mx-auto mb-6 transform transition hover:scale-[1.01]">
                 <input type="text" id="city-search" placeholder="Escribir ciudad o punto de referencia" class="flex-grow p-3 bg-transparent text-white outline-none placeholder-slate-400 min-w-0" oninput="filterChargers()">
@@ -158,6 +225,9 @@
             </div>
         </div>
     </header>
+
+    <!-- Anuncios fijos (se muestran solo si hay anuncios activos) -->
+    <section id="fixed-ads" class="container mx-auto px-4 mt-10 mb-2 hidden" aria-label="Anuncios"></section>
 
     <div class="container mx-auto -mt-6 px-4 mb-8 relative z-20">
         <div class="bg-white rounded-2xl p-6 shadow-xl border border-green-500">
@@ -261,6 +331,11 @@
                 <input type="password" id="reg-pin-confirm" placeholder="Confirmar PIN" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
                 <button type="submit" id="btn-register-submit" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition shadow-lg">Registrarse</button>
             </form>
+            <div class="flex items-center gap-3 my-4 text-xs text-slate-400"><span class="flex-1 h-px bg-slate-200"></span>o<span class="flex-1 h-px bg-slate-200"></span></div>
+            <button type="button" onclick="loginWithGoogle()" class="w-full bg-white border border-slate-300 text-slate-700 py-3 rounded-lg font-bold hover:bg-slate-50 transition shadow-sm flex items-center justify-center gap-3">
+                <svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+                Registrarse con Google
+            </button>
             <button onclick="closeModal('modal-register')" class="mt-4 text-sm text-slate-400 w-full text-center hover:text-slate-600">Cancelar</button>
         </div>
     </div>
@@ -273,6 +348,11 @@
                 <input type="password" id="login-pin" placeholder="PIN (4 dígitos)" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
                 <button type="submit" id="btn-login-submit" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-black transition shadow-lg">Iniciar Sesión</button>
             </form>
+            <div class="flex items-center gap-3 my-4 text-xs text-slate-400"><span class="flex-1 h-px bg-slate-200"></span>o<span class="flex-1 h-px bg-slate-200"></span></div>
+            <button type="button" onclick="loginWithGoogle()" class="w-full bg-white border border-slate-300 text-slate-700 py-3 rounded-lg font-bold hover:bg-slate-50 transition shadow-sm flex items-center justify-center gap-3">
+                <svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+                Continuar con Google
+            </button>
             <button onclick="closeModal('modal-login')" class="mt-4 text-sm text-slate-400 w-full text-center hover:text-slate-600">Cancelar</button>
         </div>
     </div>
@@ -318,7 +398,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Potencia</label>
-                        <select id="offer-power" class="w-full border border-slate-200 p-3 rounded-lg bg-white"><option>3.7 KW</option><option>7 KW</option><option>15 KW</option><option>50 KW</option></select>
+                        <select id="offer-power" class="w-full border border-slate-200 p-3 rounded-lg bg-white"><option>3.7 KW</option><option>7 KW</option><option>15 KW</option><option>50 KW</option><option>60 KW</option><option>90 KW</option></select>
                     </div>
                 </div>
 
@@ -380,6 +460,52 @@
         </div>
     </div>
 
+    <!-- Contenido SEO -->
+    <section class="container mx-auto px-4 mb-12" id="info">
+        <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100 grid md:grid-cols-2 gap-8 text-sm leading-relaxed">
+            <article>
+                <h2 class="text-xl font-bold text-slate-800 mb-3">Cargadores para carros eléctricos en Ecuador</h2>
+                <p class="mb-3">EvCar es el mapa colaborativo de <strong>cargadores para carros eléctricos</strong> y <strong>electrolineras en Ecuador</strong>. Encuentra puntos de carga para tu auto eléctrico en Quito, Guayaquil, Cuenca, Manta, Machala, Santo Domingo, Salinas, Esmeraldas y en las principales vías del país.</p>
+                <p>Cada punto indica el tipo de conector (Tipo 1, Tipo 2, CCS2, CHAdeMO, GB/T o tomacorriente 220V), la potencia (desde 3.7 kW hasta carga rápida de 60 y 90 kW), el horario, el precio por kWh y si está disponible u ocupado.</p>
+            </article>
+            <article>
+                <h2 class="text-xl font-bold text-slate-800 mb-3">Instalación de cargadores para autos eléctricos</h2>
+                <p class="mb-3">Ofrecemos <strong>instalación de cargadores para carros eléctricos</strong> en casas, edificios y negocios <strong>desde $20 USD</strong>: wallbox Tipo 1 y Tipo 2, tomacorrientes 220V 32A y adecuación de la instalación eléctrica.</p>
+                <a href="https://wa.me/593980407829?text=Hola,%20quiero%20cotizar%20la%20instalaci%C3%B3n%20de%20un%20cargador%20para%20mi%20carro%20el%C3%A9ctrico" target="_blank" rel="noopener" class="inline-flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-green-700 transition shadow">Cotizar instalación por WhatsApp</a>
+            </article>
+            <div class="md:col-span-2">
+                <h2 class="text-xl font-bold text-slate-800 mb-3">Preguntas frecuentes</h2>
+                <details class="border-b border-slate-100 py-2"><summary class="font-semibold text-slate-800 cursor-pointer">¿Dónde encuentro cargadores para carros eléctricos en Ecuador?</summary><p class="mt-2">Usa el buscador o el mapa de EvCar: muestra cargadores y electrolineras con potencia, conector, horario y precio en todo Ecuador.</p></details>
+                <details class="border-b border-slate-100 py-2"><summary class="font-semibold text-slate-800 cursor-pointer">¿Cuánto cuesta la instalación de un cargador para carro eléctrico?</summary><p class="mt-2">Desde $20 USD, según el tipo de cargador y la instalación eléctrica. Escríbenos por WhatsApp al +593 98 040 7829 para una cotización.</p></details>
+                <details class="border-b border-slate-100 py-2"><summary class="font-semibold text-slate-800 cursor-pointer">¿Qué tipos de conectores de carga hay en Ecuador?</summary><p class="mt-2">Tipo 2, Tipo 1, CCS2, CHAdeMO, GB/T y tomacorrientes de 220V 32A. Cada punto en EvCar indica su conector y potencia.</p></details>
+                <details class="py-2"><summary class="font-semibold text-slate-800 cursor-pointer">¿Puedo publicar mi cargador?</summary><p class="mt-2">Sí. Crea tu cuenta gratis, también con Google, y publica tu punto de carga con ubicación, potencia, precio y horario.</p></details>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-slate-900 text-slate-400 text-xs text-center py-6 px-4">
+        <p>© EvCar · Cargadores para carros eléctricos e instalación de cargadores en Ecuador · <a href="https://wa.me/593980407829" class="text-green-400 hover:underline" target="_blank" rel="noopener">WhatsApp +593 98 040 7829</a></p>
+    </footer>
+
+    <!-- Anuncio flotante (se activa/desactiva desde admin.html) -->
+    <div id="promo-popup" class="fixed bottom-20 right-5 left-5 sm:left-auto sm:w-96 z-[45] hidden">
+        <div class="bg-white rounded-2xl shadow-2xl border-2 border-green-500 overflow-hidden" style="animation: fadeIn .3s ease-out">
+            <div class="bg-gradient-to-r from-green-500 to-green-600 px-4 py-2 flex justify-between items-center text-white">
+                <span class="text-xs font-bold uppercase tracking-wide">⚡ Instalación de cargadores</span>
+                <button onclick="closePromo()" class="text-white/80 hover:text-white font-bold" aria-label="Cerrar anuncio">✕</button>
+            </div>
+            <div class="p-5">
+                <img id="promo-image" class="w-full rounded-lg mb-3 hidden" alt="">
+                <h3 id="promo-title" class="font-extrabold text-slate-800 text-lg leading-tight mb-2"></h3>
+                <p id="promo-body" class="text-sm text-slate-600 mb-4"></p>
+                <a id="promo-link" href="#" target="_blank" rel="noopener" onclick="closePromo()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition shadow flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1-.3-.1-.5-.1-.7.1-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.4-.5c.2-.2.2-.3.3-.5.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5 2.5 1 3 .8 3.6.8.6-.1 1.8-.7 2-1.5.3-.7.3-1.3.2-1.5-.1-.1-.3-.2-.6-.3zM12 21.8c-1.8 0-3.5-.5-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4C2.7 15.6 2.2 13.8 2.2 12 2.2 6.6 6.6 2.2 12 2.2S21.8 6.6 21.8 12 17.4 21.8 12 21.8zM12 0C5.4 0 0 5.4 0 12c0 2.1.6 4.2 1.6 6L0 24l6.2-1.6c1.8 1 3.8 1.5 5.8 1.5 6.6 0 12-5.4 12-12S18.6 0 12 0z"/></svg>
+                    <span id="promo-button"></span>
+                </a>
+            </div>
+        </div>
+    </div>
+
     <a href="https://wa.me/593980407829?text=Hola,%20quiero%20hacer%20una%20pregunta" 
        target="_blank" 
        class="float-btn fixed bottom-5 right-5 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-full shadow-xl flex items-center gap-3 border-2 border-white transition hover:scale-110 no-underline">
@@ -419,7 +545,15 @@
         }).addTo(map);
     }
 
-    document.addEventListener('DOMContentLoaded', () => { checkSession(); loadChargers(); requestInitialLocation(); });
+    document.addEventListener('DOMContentLoaded', () => { checkSession(); loadChargers(); requestInitialLocation(); loadAds(); });
+    _supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session?.user?.id !== currentUser?.id) {
+            currentUser = session.user;
+            // Limpia el hash/código del retorno de Google
+            if (location.hash.includes('access_token') || location.search.includes('code=')) history.replaceState(null, '', location.pathname);
+            updateUI();
+        }
+    });
 
     let userCoords = null;
     let locationRequested = false;
@@ -681,12 +815,14 @@
         const nameDisplay = document.getElementById('user-display-name');
 
         if (currentUser) {
-            const { data } = await _supabase.from('profiles').select('full_name').eq('id', currentUser.id).single();
-            if(data) {
-                nameDisplay.innerText = `Hola, ${data.full_name}`;
+            const { data } = await _supabase.from('profiles').select('full_name, role').eq('id', currentUser.id).single();
+            const displayName = data?.full_name || currentUser.user_metadata?.full_name || currentUser.email;
+            if(displayName) {
+                nameDisplay.innerText = `Hola, ${displayName}`;
                 nameDisplay.classList.remove('hidden');
             }
             nav.innerHTML = `
+                ${data?.role === 'admin' ? '<a href="admin.html" class="text-slate-500 hover:text-green-600 font-medium transition mr-2 text-xs sm:text-sm">Admin</a>' : ''}
                 <button onclick="openModal('modal-my-chargers');loadMyChargers()" class="text-slate-500 hover:text-green-600 font-medium transition mr-2 text-xs sm:text-sm">Mis Cargadores</button>
                 <button onclick="logout()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-xs sm:text-sm hover:bg-slate-200 font-bold transition">Salir</button>
             `;
@@ -1027,6 +1163,60 @@
 
     document.getElementById('form-offer').addEventListener('submit', postCharger);
     async function logout() { await _supabase.auth.signOut(); window.location.reload(); }
+
+    // ================= LOGIN CON GOOGLE =================
+    async function loginWithGoogle() {
+        const { error } = await _supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: window.location.origin + window.location.pathname }
+        });
+        if(error) alert(error.message);
+    }
+
+    // ================= ANUNCIOS =================
+    function safeUrl(url) {
+        return /^https?:\/\//i.test(url || '') ? url : '#';
+    }
+
+    async function loadAds() {
+        const { data, error } = await _supabase.from('ads').select('*').eq('active', true).order('sort_order').order('created_at', { ascending: false });
+        if(error || !data) return;
+
+        const fixed = data.filter(a => a.kind === 'fixed');
+        const box = document.getElementById('fixed-ads');
+        if(fixed.length) {
+            box.innerHTML = fixed.map(a => `
+                <div class="bg-gradient-to-r from-green-50 to-white border border-green-200 rounded-2xl p-4 mb-3 flex flex-col sm:flex-row items-center gap-4 shadow-sm">
+                    ${a.image_url ? `<img src="${escapeHtml(safeUrl(a.image_url))}" alt="${escapeHtml(a.title)}" class="w-full sm:w-32 h-24 object-cover rounded-lg" loading="lazy">` : ''}
+                    <div class="flex-grow text-center sm:text-left">
+                        <p class="font-bold text-slate-800">${escapeHtml(a.title)}</p>
+                        ${a.body ? `<p class="text-sm text-slate-600">${escapeHtml(a.body)}</p>` : ''}
+                    </div>
+                    ${a.link_url ? `<a href="${escapeHtml(safeUrl(a.link_url))}" target="_blank" rel="noopener sponsored" class="bg-green-600 text-white px-5 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow shrink-0 text-sm">${escapeHtml(a.button_text || 'Ver más')}</a>` : ''}
+                </div>`).join('');
+            box.classList.remove('hidden');
+        }
+
+        const popup = data.find(a => a.kind === 'popup');
+        let dismissed = false;
+        try { dismissed = sessionStorage.getItem('promo-closed') === String(popup?.id); } catch(e) {}
+        if(popup && !dismissed) {
+            document.getElementById('promo-title').innerText = popup.title || '';
+            document.getElementById('promo-body').innerText = popup.body || '';
+            document.getElementById('promo-button').innerText = popup.button_text || 'Escribir por WhatsApp';
+            document.getElementById('promo-link').href = safeUrl(popup.link_url);
+            const img = document.getElementById('promo-image');
+            if(popup.image_url) { img.src = safeUrl(popup.image_url); img.alt = popup.title || ''; img.classList.remove('hidden'); }
+            document.getElementById('promo-popup').dataset.adId = popup.id;
+            setTimeout(() => document.getElementById('promo-popup').classList.remove('hidden'), 5000);
+        }
+    }
+
+    function closePromo() {
+        const el = document.getElementById('promo-popup');
+        el.classList.add('hidden');
+        try { sessionStorage.setItem('promo-closed', el.dataset.adId || ''); } catch(e) {}
+    }
 </script>
 </body>
 </html>

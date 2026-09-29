@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>EvCar - Administración</title>
+    <link rel="icon" href="icono.PNG" type="image/png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 50; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal.active { display: flex; }
+        .tab-btn.active { background: #16a34a; color: #fff; }
+        .field { width: 100%; border: 1px solid #e2e8f0; background: #f8fafc; padding: .6rem; border-radius: .5rem; font-size: .875rem; }
+        .lbl { display: block; font-size: .7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: .2rem; }
+    </style>
+</head>
+<body class="text-slate-700">
+    <nav class="bg-white shadow-sm p-4 sticky top-0 z-40 border-b border-slate-100">
+        <div class="container mx-auto flex justify-between items-center gap-3">
+            <a href="index.html" class="text-2xl font-bold text-slate-800">EvCar <span class="text-sm font-medium text-green-600">Admin</span></a>
+            <div class="flex items-center gap-3 text-sm">
+                <span id="admin-name" class="text-slate-500 hidden sm:inline"></span>
+                <button id="btn-logout" onclick="logout()" class="hidden bg-slate-100 px-4 py-2 rounded-lg font-bold hover:bg-slate-200">Salir</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Acceso -->
+    <section id="login-view" class="hidden max-w-sm mx-auto mt-16 bg-white p-8 rounded-2xl shadow-xl border-t-4 border-green-500">
+        <h1 class="text-2xl font-bold mb-2 text-slate-800">Panel de administración</h1>
+        <p id="login-msg" class="text-sm text-slate-500 mb-6">Ingresa con una cuenta de administrador.</p>
+        <form id="form-login" class="space-y-4">
+            <input type="email" id="login-email" placeholder="Correo electrónico" class="field" required>
+            <input type="password" id="login-pin" placeholder="PIN (4 dígitos)" maxlength="4" class="field text-center tracking-[0.5em]" required>
+            <button type="submit" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-black">Iniciar sesión</button>
+        </form>
+        <button onclick="loginWithGoogle()" class="mt-3 w-full bg-white border border-slate-300 py-3 rounded-lg font-bold hover:bg-slate-50">Continuar con Google</button>
+    </section>
+
+    <!-- Panel -->
+    <main id="admin-view" class="hidden container mx-auto px-4 py-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm"><p class="lbl">Cargadores</p><p id="stat-chargers" class="text-2xl font-bold text-slate-800">–</p></div>
+            <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm"><p class="lbl">Ocupados</p><p id="stat-occupied" class="text-2xl font-bold text-red-600">–</p></div>
+            <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm"><p class="lbl">Usuarios</p><p id="stat-users" class="text-2xl font-bold text-slate-800">–</p></div>
+            <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm"><p class="lbl">Anuncios activos</p><p id="stat-ads" class="text-2xl font-bold text-green-600">–</p></div>
+        </div>
+
+        <div class="flex gap-2 mb-4 flex-wrap">
+            <button class="tab-btn active px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="chargers">⚡ Cargadores</button>
+            <button class="tab-btn px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="users">👥 Usuarios</button>
+            <button class="tab-btn px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="ads">📢 Anuncios</button>
+        </div>
+
+        <!-- Cargadores -->
+        <section id="tab-chargers" class="tab bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                <input id="charger-search" oninput="renderChargers()" placeholder="Buscar por título, ciudad, dirección o dueño" class="field flex-grow">
+                <button onclick="openChargerForm()" class="bg-yellow-400 text-yellow-900 px-4 py-2 rounded-lg font-bold hover:bg-yellow-300 shrink-0">+ Nuevo cargador</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-left text-xs uppercase text-slate-400 border-b"><tr>
+                        <th class="p-2">ID</th><th class="p-2">Título</th><th class="p-2">Ciudad</th><th class="p-2">Potencia</th><th class="p-2">Conector</th><th class="p-2">Estado</th><th class="p-2">Dueño</th><th class="p-2"></th>
+                    </tr></thead>
+                    <tbody id="chargers-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Usuarios -->
+        <section id="tab-users" class="tab hidden bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <input id="user-search" oninput="renderUsers()" placeholder="Buscar por nombre, correo o teléfono" class="field mb-4">
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-left text-xs uppercase text-slate-400 border-b"><tr>
+                        <th class="p-2">Nombre</th><th class="p-2">Correo</th><th class="p-2">Teléfono</th><th class="p-2">Acceso</th><th class="p-2">Cargadores</th><th class="p-2">Registro</th><th class="p-2">Último ingreso</th><th class="p-2">Rol</th>
+                    </tr></thead>
+                    <tbody id="users-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Anuncios -->
+        <section id="tab-ads" class="tab hidden bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <div class="flex justify-between items-center mb-4 gap-2">
+                <p class="text-sm text-slate-500">El anuncio <b>flotante</b> aparece a los 5 s de entrar. Los <b>fijos</b> se muestran bajo la cabecera. Si no hay activos, no se muestra nada.</p>
+                <button onclick="openAdForm()" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 shrink-0">+ Nuevo anuncio</button>
+            </div>
+            <div id="ads-list" class="grid md:grid-cols-2 gap-4"></div>
+        </section>
+    </main>
+
+    <!-- Formulario cargador -->
+    <div id="modal-charger" class="modal">
+        <form id="form-charger" class="bg-white p-6 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto m-4 space-y-3">
+            <h2 id="charger-form-title" class="text-xl font-bold text-slate-800">Cargador</h2>
+            <input type="hidden" id="c-id">
+            <div><label class="lbl">Título</label><input id="c-title" class="field" required maxlength="120"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Ciudad</label><input id="c-city" class="field" required maxlength="80"></div>
+                <div><label class="lbl">Provincia</label><input id="c-provincia" class="field" maxlength="80"></div>
+            </div>
+            <div><label class="lbl">Dirección</label><input id="c-address" class="field" maxlength="160"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Tipo conector</label><input id="c-type" class="field" list="types-list" maxlength="120"></div>
+                <div><label class="lbl">Potencia</label><input id="c-power" class="field" list="power-list" maxlength="60"></div>
+            </div>
+            <datalist id="types-list"><option>Tipo 1</option><option>Tipo 2</option><option>Pared Tipo 2</option><option>CCS2</option><option>Chademo</option><option>GBT</option><option>Toma 220v</option><option>Toma 110v</option><option>Electrolinera</option></datalist>
+            <datalist id="power-list"><option>3.7 KW</option><option>7 KW</option><option>15 KW</option><option>50 KW</option><option>60 KW</option><option>90 KW</option></datalist>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Precio / kWh</label><input id="c-price-kwh" class="field"></div>
+                <div><label class="lbl">Precio / h parqueo</label><input id="c-price-parking" class="field"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Tipo parqueadero</label><input id="c-parking-type" class="field" maxlength="60"></div>
+                <div><label class="lbl">Horario</label><input id="c-schedule" class="field" maxlength="120"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Latitud</label><input id="c-lat" type="number" step="any" class="field" required></div>
+                <div><label class="lbl">Longitud</label><input id="c-lng" type="number" step="any" class="field" required></div>
+            </div>
+            <div><label class="lbl">Link Google Maps</label><input id="c-link" type="url" class="field"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Estado</label><select id="c-status" class="field"><option>DISPONIBLE</option><option>OCUPADO</option></select></div>
+                <div><label class="lbl">Teléfono de contacto</label><input id="c-contact-phone" class="field" maxlength="30"></div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeModal('modal-charger')" class="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700">Guardar</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Formulario anuncio -->
+    <div id="modal-ad" class="modal">
+        <form id="form-ad" class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto m-4 space-y-3">
+            <h2 class="text-xl font-bold text-slate-800">Anuncio</h2>
+            <input type="hidden" id="a-id">
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Tipo</label><select id="a-kind" class="field"><option value="fixed">Fijo (banner)</option><option value="popup">Flotante (a los 5 s)</option></select></div>
+                <div><label class="lbl">Orden</label><input id="a-order" type="number" value="0" class="field"></div>
+            </div>
+            <div><label class="lbl">Título</label><input id="a-title" class="field" required maxlength="140"></div>
+            <div><label class="lbl">Texto</label><textarea id="a-body" rows="3" class="field" maxlength="500"></textarea></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Texto del botón</label><input id="a-button" class="field" maxlength="40"></div>
+                <div><label class="lbl">Enlace (https://)</label><input id="a-link" type="url" class="field"></div>
+            </div>
+            <div><label class="lbl">Imagen (URL https, opcional)</label><input id="a-image" type="url" class="field"></div>
+            <label class="flex items-center gap-2 text-sm font-bold"><input id="a-active" type="checkbox" class="w-4 h-4"> Activo</label>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeModal('modal-ad')" class="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700">Guardar</button>
+            </div>
+        </form>
+    </div>
+
+<script>
+    // ================= CONFIGURACIÓN =================
+    const SUPABASE_URL = 'https://yjnlfewsgksdsvsimdjs.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqbmxmZXdzZ2tzZHN2c2ltZGpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NTk4OTgsImV4cCI6MjA3OTMzNTg5OH0.ysDsAdyn3k2i51xnAkJFGKtEWpQ3laxWV7rpjvFIF8E';
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const PIN_SUFFIX = '99'; // igual que index.html
+
+    let currentUser = null;
+    let chargers = [], users = [], ads = [];
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+    }
+    function normalize(str) { return (str || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+    function fmtDate(d) { return d ? new Date(d).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '–'; }
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+    function val(id) { return document.getElementById(id).value.trim(); }
+    function setVal(id, v) { document.getElementById(id).value = v ?? ''; }
+
+    // ================= ACCESO =================
+    async function init() {
+        const { data: { session } } = await _supabase.auth.getSession();
+        currentUser = session?.user || null;
+        if (location.hash.includes('access_token') || location.search.includes('code=')) history.replaceState(null, '', location.pathname);
+        if (!currentUser) return showLogin();
+
+        const { data: profile } = await _supabase.from('profiles').select('full_name, role').eq('id', currentUser.id).single();
+        if (profile?.role !== 'admin') return showLogin('Tu cuenta no tiene permisos de administrador.');
+
+        document.getElementById('admin-name').innerText = profile.full_name || currentUser.email;
+        document.getElementById('btn-logout').classList.remove('hidden');
+        document.getElementById('login-view').classList.add('hidden');
+        document.getElementById('admin-view').classList.remove('hidden');
+        loadChargers(); loadUsers(); loadAds();
+    }
+
+    function showLogin(msg) {
+        document.getElementById('admin-view').classList.add('hidden');
+        document.getElementById('login-view').classList.remove('hidden');
+        if (msg) document.getElementById('login-msg').innerText = msg;
+        document.getElementById('btn-logout').classList.toggle('hidden', !currentUser);
+    }
+
+    document.getElementById('form-login').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pin = val('login-pin');
+        if (!/^\d{4}$/.test(pin)) return alert('El PIN debe tener 4 dígitos');
+        const { error } = await _supabase.auth.signInWithPassword({ email: val('login-email'), password: pin + PIN_SUFFIX });
+        if (error) alert('Correo o PIN incorrecto'); else init();
+    });
+
+    async function loginWithGoogle() {
+        const { error } = await _supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + window.location.pathname } });
+        if (error) alert(error.message);
+    }
+    async function logout() { await _supabase.auth.signOut(); location.reload(); }
+
+    _supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session?.user?.id !== currentUser?.id) init();
+    });
+
+    // Pestañas
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('hidden', t.id !== 'tab-' + btn.dataset.tab));
+    }));
+
+    // ================= CARGADORES =================
+    async function loadChargers() {
+        const { data, error } = await _supabase.from('chargers').select('*, profiles(full_name)').order('id', { ascending: false });
+        if (error) return alert(error.message);
+        chargers = data || [];
+        document.getElementById('stat-chargers').innerText = chargers.length;
+        document.getElementById('stat-occupied').innerText = chargers.filter(c => c.status === 'OCUPADO').length;
+        renderChargers();
+    }
+
+    function renderChargers() {
+        const term = normalize(val('charger-search'));
+        const list = term ? chargers.filter(c => [c.title, c.city, c.address, c.provincia, c.profiles?.full_name].some(f => normalize(f).includes(term))) : chargers;
+        document.getElementById('chargers-body').innerHTML = list.map(c => `
+            <tr class="border-b border-slate-50 hover:bg-slate-50">
+                <td class="p-2 text-slate-400">${c.id}</td>
+                <td class="p-2 font-semibold text-slate-800">${escapeHtml(c.title)}</td>
+                <td class="p-2">${escapeHtml(c.city)}</td>
+                <td class="p-2">${escapeHtml(c.power)}</td>
+                <td class="p-2 text-xs">${escapeHtml(c.charger_type)}</td>
+                <td class="p-2"><button onclick="toggleStatus(${c.id})" title="Cambiar estado" class="text-[10px] font-extrabold px-2 py-1 rounded-full ${c.status === 'OCUPADO' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}">${escapeHtml(c.status)}</button></td>
+                <td class="p-2 text-xs">${escapeHtml(c.profiles?.full_name || '–')}</td>
+                <td class="p-2 whitespace-nowrap text-right">
+                    <button onclick="openChargerForm(${c.id})" class="text-blue-600 hover:underline mr-2">Editar</button>
+                    <button onclick="deleteCharger(${c.id})" class="text-red-600 hover:underline">Eliminar</button>
+                </td>
+            </tr>`).join('') || '<tr><td colspan="8" class="p-6 text-center text-slate-400">Sin resultados</td></tr>';
+    }
+
+    function openChargerForm(id) {
+        const c = chargers.find(x => x.id === id) || {};
+        document.getElementById('charger-form-title').innerText = id ? `Editar cargador #${id}` : 'Nuevo cargador';
+        setVal('c-id', c.id); setVal('c-title', c.title); setVal('c-city', c.city); setVal('c-provincia', c.provincia);
+        setVal('c-address', c.address); setVal('c-type', c.charger_type); setVal('c-power', c.power);
+        setVal('c-price-kwh', c.price_kwh); setVal('c-price-parking', c.price_parking); setVal('c-parking-type', c.parking_type);
+        setVal('c-schedule', c.schedule); setVal('c-lat', c.lat); setVal('c-lng', c.lng); setVal('c-link', c.link);
+        setVal('c-status', c.status || 'DISPONIBLE'); setVal('c-contact-phone', c.contact_phone);
+        openModal('modal-charger');
+    }
+
+    document.getElementById('form-charger').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = val('c-id');
+        const payload = {
+            title: val('c-title'), city: val('c-city'), provincia: val('c-provincia') || null, address: val('c-address'),
+            charger_type: val('c-type'), power: val('c-power'), price_kwh: val('c-price-kwh') || null, price_parking: val('c-price-parking') || null,
+            parking_type: val('c-parking-type'), schedule: val('c-schedule'), lat: parseFloat(val('c-lat')), lng: parseFloat(val('c-lng')),
+            link: val('c-link') || null, status: val('c-status'), contact_phone: val('c-contact-phone') || null
+        };
+        if (payload.status === 'DISPONIBLE') payload.occupied_until = null;
+        const { error } = id
+            ? await _supabase.from('chargers').update(payload).eq('id', id)
+            : await _supabase.from('chargers').insert([{ ...payload, user_id: currentUser.id }]);
+        if (error) return alert(error.message);
+        closeModal('modal-charger');
+        loadChargers();
+    });
+
+    async function toggleStatus(id) {
+        const c = chargers.find(x => x.id === id);
+        const status = c.status === 'OCUPADO' ? 'DISPONIBLE' : 'OCUPADO';
+        const { error } = await _supabase.from('chargers').update({ status, occupied_until: null }).eq('id', id);
+        if (error) alert(error.message); else loadChargers();
+    }
+
+    async function deleteCharger(id) {
+        const c = chargers.find(x => x.id === id);
+        if (!confirm(`¿Eliminar el cargador "${c?.title}"? Esta acción no se puede deshacer.`)) return;
+        const { error } = await _supabase.from('chargers').delete().eq('id', id);
+        if (error) alert(error.message); else loadChargers();
+    }
+
+    // ================= USUARIOS =================
+    async function loadUsers() {
+        const { data, error } = await _supabase.rpc('admin_list_users');
+        if (error) return alert('Usuarios: ' + error.message);
+        users = data || [];
+        document.getElementById('stat-users').innerText = users.length;
+        renderUsers();
+    }
+
+    function renderUsers() {
+        const term = normalize(val('user-search'));
+        const list = term ? users.filter(u => [u.full_name, u.email, u.phone].some(f => normalize(f).includes(term))) : users;
+        document.getElementById('users-body').innerHTML = list.map(u => `
+            <tr class="border-b border-slate-50 hover:bg-slate-50">
+                <td class="p-2 font-semibold text-slate-800">${escapeHtml(u.full_name || '–')}</td>
+                <td class="p-2">${escapeHtml(u.email)}</td>
+                <td class="p-2">${u.phone ? `<a class="text-green-700 hover:underline" href="https://wa.me/${escapeHtml(u.phone.replace(/\D/g, ''))}" target="_blank" rel="noopener">${escapeHtml(u.phone)}</a>` : '–'}</td>
+                <td class="p-2 text-xs">${escapeHtml(u.provider)}</td>
+                <td class="p-2 text-center">${u.chargers_count}</td>
+                <td class="p-2 text-xs">${fmtDate(u.created_at)}</td>
+                <td class="p-2 text-xs">${fmtDate(u.last_sign_in_at)}</td>
+                <td class="p-2">
+                    <select onchange="setRole('${u.id}', this.value)" ${u.id === currentUser.id ? 'disabled' : ''} class="border border-slate-200 rounded p-1 text-xs ${u.role === 'admin' ? 'bg-green-50 font-bold' : ''}">
+                        <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>Usuario</option>
+                        <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
+                    </select>
+                </td>
+            </tr>`).join('') || '<tr><td colspan="8" class="p-6 text-center text-slate-400">Sin resultados</td></tr>';
+    }
+
+    async function setRole(id, role) {
+        if (!confirm(`¿Cambiar el rol a "${role}"?`)) return loadUsers();
+        const { error } = await _supabase.rpc('admin_set_role', { p_user: id, p_role: role });
+        if (error) alert(error.message);
+        loadUsers();
+    }
+
+    // ================= ANUNCIOS =================
+    async function loadAds() {
+        const { data, error } = await _supabase.from('ads').select('*').order('kind').order('sort_order').order('created_at', { ascending: false });
+        if (error) return alert('Anuncios: ' + error.message);
+        ads = data || [];
+        document.getElementById('stat-ads').innerText = ads.filter(a => a.active).length;
+        document.getElementById('ads-list').innerHTML = ads.map(a => `
+            <div class="border rounded-xl p-4 ${a.active ? 'border-green-300 bg-green-50/40' : 'border-slate-200 bg-slate-50 opacity-80'}">
+                <div class="flex justify-between items-start gap-2 mb-2">
+                    <span class="text-[10px] font-bold uppercase px-2 py-1 rounded-full ${a.kind === 'popup' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}">${a.kind === 'popup' ? 'Flotante 5 s' : 'Fijo'}</span>
+                    <label class="flex items-center gap-2 text-xs font-bold cursor-pointer">
+                        <input type="checkbox" ${a.active ? 'checked' : ''} onchange="toggleAd(${a.id}, this.checked)" class="w-4 h-4"> ${a.active ? 'Activo' : 'Inactivo'}
+                    </label>
+                </div>
+                <p class="font-bold text-slate-800">${escapeHtml(a.title)}</p>
+                <p class="text-sm text-slate-600 mb-2">${escapeHtml(a.body || '')}</p>
+                <p class="text-xs text-slate-400 truncate mb-3">${escapeHtml(a.button_text || '')} → ${escapeHtml(a.link_url || 'sin enlace')}</p>
+                <div class="flex gap-3 text-sm">
+                    <button onclick="openAdForm(${a.id})" class="text-blue-600 hover:underline">Editar</button>
+                    <button onclick="deleteAd(${a.id})" class="text-red-600 hover:underline">Eliminar</button>
+                </div>
+            </div>`).join('') || '<p class="text-slate-400 text-sm">No hay anuncios.</p>';
+    }
+
+    function openAdForm(id) {
+        const a = ads.find(x => x.id === id) || { kind: 'fixed', sort_order: 0, active: true };
+        setVal('a-id', a.id); setVal('a-kind', a.kind); setVal('a-order', a.sort_order); setVal('a-title', a.title);
+        setVal('a-body', a.body); setVal('a-button', a.button_text); setVal('a-link', a.link_url); setVal('a-image', a.image_url);
+        document.getElementById('a-active').checked = !!a.active;
+        openModal('modal-ad');
+    }
+
+    document.getElementById('form-ad').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = val('a-id');
+        const payload = {
+            kind: val('a-kind'), sort_order: parseInt(val('a-order')) || 0, title: val('a-title'), body: val('a-body') || null,
+            button_text: val('a-button') || null, link_url: val('a-link') || null, image_url: val('a-image') || null,
+            active: document.getElementById('a-active').checked
+        };
+        const { error } = id
+            ? await _supabase.from('ads').update(payload).eq('id', id)
+            : await _supabase.from('ads').insert([payload]);
+        if (error) return alert(error.message);
+        closeModal('modal-ad');
+        loadAds();
+    });
+
+    async function toggleAd(id, active) {
+        const { error } = await _supabase.from('ads').update({ active }).eq('id', id);
+        if (error) alert(error.message);
+        loadAds();
+    }
+
+    async function deleteAd(id) {
+        if (!confirm('¿Eliminar este anuncio?')) return;
+        const { error } = await _supabase.from('ads').delete().eq('id', id);
+        if (error) alert(error.message); else loadAds();
+    }
+
+    init();
+</script>
+</body>
+</html>
