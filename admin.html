@@ -74,11 +74,15 @@
 
         <!-- Usuarios -->
         <section id="tab-users" class="tab hidden bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <input id="user-search" oninput="renderUsers()" placeholder="Buscar por nombre, correo o teléfono" class="field mb-4">
+            <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                <input id="user-search" oninput="renderUsers()" placeholder="Buscar por nombre, correo o teléfono" class="field flex-grow">
+                <button onclick="exportConsented('email')" class="bg-white border border-slate-300 px-3 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 shrink-0">⬇️ Correos con permiso</button>
+                <button onclick="exportConsented('whatsapp')" class="bg-white border border-slate-300 px-3 py-2 rounded-lg text-sm font-bold hover:bg-slate-50 shrink-0">⬇️ WhatsApp con permiso</button>
+            </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="text-left text-xs uppercase text-slate-400 border-b"><tr>
-                        <th class="p-2">Nombre</th><th class="p-2">Correo</th><th class="p-2">Teléfono</th><th class="p-2">Acceso</th><th class="p-2">Cargadores</th><th class="p-2">Registro</th><th class="p-2">Último ingreso</th><th class="p-2">Rol</th>
+                        <th class="p-2">Nombre</th><th class="p-2">Correo</th><th class="p-2">Teléfono</th><th class="p-2">Acceso</th><th class="p-2">Cargadores</th><th class="p-2">Registro</th><th class="p-2">Último ingreso</th><th class="p-2">Acepta avisos</th><th class="p-2">Rol</th>
                     </tr></thead>
                     <tbody id="users-body"></tbody>
                 </table>
@@ -322,13 +326,27 @@
                 <td class="p-2 text-center">${u.chargers_count}</td>
                 <td class="p-2 text-xs">${fmtDate(u.created_at)}</td>
                 <td class="p-2 text-xs">${fmtDate(u.last_sign_in_at)}</td>
+                <td class="p-2 text-xs whitespace-nowrap" title="${u.consent_updated_at ? 'Actualizado: ' + fmtDate(u.consent_updated_at) : 'No ha respondido'}">${u.consent_email ? '📧 Correo ' : ''}${u.consent_whatsapp ? '💬 WhatsApp' : ''}${!u.consent_email && !u.consent_whatsapp ? '<span class="text-slate-300">No</span>' : ''}</td>
                 <td class="p-2">
                     <select onchange="setRole('${u.id}', this.value)" ${u.id === currentUser.id ? 'disabled' : ''} class="border border-slate-200 rounded p-1 text-xs ${u.role === 'admin' ? 'bg-green-50 font-bold' : ''}">
                         <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>Usuario</option>
                         <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
                     </select>
                 </td>
-            </tr>`).join('') || '<tr><td colspan="8" class="p-6 text-center text-slate-400">Sin resultados</td></tr>';
+            </tr>`).join('') || '<tr><td colspan="9" class="p-6 text-center text-slate-400">Sin resultados</td></tr>';
+    }
+
+    // Exporta solo los contactos que dieron permiso (para correo o WhatsApp)
+    function exportConsented(channel) {
+        const list = users.filter(u => channel === 'email' ? u.consent_email : (u.consent_whatsapp && u.phone));
+        if (!list.length) return alert('No hay usuarios con ese permiso.');
+        const rows = [['nombre', channel === 'email' ? 'correo' : 'whatsapp']]
+            .concat(list.map(u => [u.full_name || '', channel === 'email' ? u.email : u.phone]));
+        const csv = rows.map(r => r.map(v => '"' + String(v).replaceAll('"', '""') + '"').join(',')).join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv' }));
+        a.download = `evcar_contactos_${channel}.csv`;
+        a.click();
     }
 
     async function setRole(id, role) {

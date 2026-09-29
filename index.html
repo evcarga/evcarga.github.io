@@ -329,6 +329,12 @@
                 <input type="email" id="reg-email" placeholder="Correo Electrónico" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
                 <input type="password" id="reg-pin" placeholder="PIN (4 dígitos)" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
                 <input type="password" id="reg-pin-confirm" placeholder="Confirmar PIN" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
+                <div class="bg-green-50 border border-green-100 rounded-lg p-3 text-xs text-slate-600 space-y-1.5">
+                    <p class="font-bold text-slate-700">Quiero recibir información sobre EvCar y mis cargadores por:</p>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="reg-consent-email" class="w-4 h-4"> Correo electrónico</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="reg-consent-whatsapp" class="w-4 h-4"> WhatsApp</label>
+                    <p class="text-[10px] text-slate-400">Opcional. Puedes cambiarlo cuando quieras en "Avisos".</p>
+                </div>
                 <label class="flex items-start gap-2 text-xs text-slate-500">
                     <input type="checkbox" required class="mt-0.5 w-4 h-4 shrink-0">
                     <span>Acepto la <a href="privacidad.html" target="_blank" class="text-green-700 underline">Política de Privacidad y Términos</a> y autorizo el tratamiento de mis datos, incluido mostrar mi teléfono a usuarios registrados que consulten mis cargadores.</span>
@@ -456,6 +462,21 @@
         </div>
     </div>
 
+    <div id="modal-consent" class="modal" onclick="if(event.target===this) closeModal('modal-consent')">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl border-t-4 border-green-500 m-4">
+            <h2 class="text-xl font-bold text-slate-800 mb-2">🔔 Avisos de EvCar</h2>
+            <p class="text-sm text-slate-500 mb-4">¿Nos das permiso para enviarte novedades de la web, nuevos cargadores cerca de ti e información sobre tus cargadores publicados?</p>
+            <div class="space-y-3 text-sm mb-3">
+                <label class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 cursor-pointer"><input type="checkbox" id="consent-email" class="w-5 h-5"> <span>📧 Por correo electrónico</span></label>
+                <label class="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border border-slate-100 cursor-pointer"><input type="checkbox" id="consent-whatsapp" class="w-5 h-5"> <span>💬 Por WhatsApp</span></label>
+                <input type="tel" id="consent-phone" placeholder="Tu número de WhatsApp" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg hidden" maxlength="20">
+            </div>
+            <p class="text-[11px] text-slate-400 mb-4">Puedes retirar el permiso cuando quieras. Ver <a href="privacidad.html" target="_blank" class="underline">Política de Privacidad</a>.</p>
+            <button onclick="saveConsent()" id="btn-consent-save" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition shadow">Guardar preferencias</button>
+            <button onclick="saveConsent(true)" class="mt-2 w-full text-sm text-slate-400 hover:text-slate-600">Ahora no</button>
+        </div>
+    </div>
+
     <div id="modal-my-chargers" class="modal">
         <div class="bg-white p-6 rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll">
             <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
@@ -531,6 +552,7 @@
 
     let mainMap, pickerMap, detailMap, pickerMarker, detailMarker;
     let currentUser = null;
+    let currentProfile = null;
     let chargersData = [];
     let itemsLimit = 6;
     let tempPickerCoords = null;
@@ -821,7 +843,8 @@
         const nameDisplay = document.getElementById('user-display-name');
 
         if (currentUser) {
-            const { data } = await _supabase.from('profiles').select('full_name, role').eq('id', currentUser.id).single();
+            const { data } = await _supabase.from('profiles').select('full_name, role, phone, consent_email, consent_whatsapp, consent_updated_at').eq('id', currentUser.id).single();
+            currentProfile = data;
             const displayName = data?.full_name || currentUser.user_metadata?.full_name || currentUser.email;
             if(displayName) {
                 nameDisplay.innerText = `Hola, ${displayName}`;
@@ -829,11 +852,16 @@
             }
             nav.innerHTML = `
                 ${data?.role === 'admin' ? '<a href="admin.html" class="text-slate-500 hover:text-green-600 font-medium transition mr-2 text-xs sm:text-sm">Admin</a>' : ''}
+                <button onclick="openConsent()" class="text-slate-500 hover:text-green-600 font-medium transition mr-2 text-xs sm:text-sm" title="Permisos para recibir información">🔔 Avisos</button>
                 <button onclick="openModal('modal-my-chargers');loadMyChargers()" class="text-slate-500 hover:text-green-600 font-medium transition mr-2 text-xs sm:text-sm">Mis Cargadores</button>
                 <button onclick="logout()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-xs sm:text-sm hover:bg-slate-200 font-bold transition">Salir</button>
             `;
             btnHero.classList.remove('hidden');
             btnHero.classList.add('flex');
+            // Si nunca eligió, preguntar una vez por sesión (p. ej. usuarios que entran con Google)
+            let asked = false;
+            try { asked = sessionStorage.getItem('consent-asked') === '1'; } catch(e) {}
+            if (data && !data.consent_updated_at && !asked) setTimeout(openConsent, 1500);
         } else {
             nameDisplay.classList.add('hidden');
             nav.innerHTML = `
@@ -1140,7 +1168,11 @@
         const { data, error } = await _supabase.auth.signUp({
             email: email,
             password: pinToPassword(pin),
-            options: { data: { full_name: name, phone: phone } }
+            options: { data: {
+                full_name: name, phone: phone,
+                consent_email: document.getElementById('reg-consent-email').checked,
+                consent_whatsapp: document.getElementById('reg-consent-whatsapp').checked
+            } }
         });
 
         btn.disabled = false; btn.innerText = 'Registrarse';
@@ -1169,6 +1201,41 @@
 
     document.getElementById('form-offer').addEventListener('submit', postCharger);
     async function logout() { await _supabase.auth.signOut(); window.location.reload(); }
+
+    // ================= PERMISOS DE COMUNICACIÓN =================
+    function openConsent() {
+        document.getElementById('consent-email').checked = !!currentProfile?.consent_email;
+        document.getElementById('consent-whatsapp').checked = !!currentProfile?.consent_whatsapp;
+        document.getElementById('consent-phone').value = currentProfile?.phone || '';
+        toggleConsentPhone();
+        openModal('modal-consent');
+    }
+
+    function toggleConsentPhone() {
+        const needsPhone = document.getElementById('consent-whatsapp').checked && !currentProfile?.phone;
+        document.getElementById('consent-phone').classList.toggle('hidden', !needsPhone);
+    }
+    document.getElementById('consent-whatsapp').addEventListener('change', toggleConsentPhone);
+
+    async function saveConsent(skip = false) {
+        try { sessionStorage.setItem('consent-asked', '1'); } catch(e) {}
+        if (!currentUser) return closeModal('modal-consent');
+        const payload = {
+            consent_email: skip ? false : document.getElementById('consent-email').checked,
+            consent_whatsapp: skip ? false : document.getElementById('consent-whatsapp').checked,
+            consent_updated_at: new Date().toISOString()
+        };
+        const phone = document.getElementById('consent-phone').value.trim();
+        if (!skip && payload.consent_whatsapp && !currentProfile?.phone) {
+            if (!/^\+?\d{9,15}$/.test(phone.replace(/[\s-]/g, ''))) return alert('Escribe un número de WhatsApp válido');
+            payload.phone = phone;
+        }
+        const { error } = await _supabase.from('profiles').update(payload).eq('id', currentUser.id);
+        if (error) return alert(error.message);
+        currentProfile = { ...currentProfile, ...payload };
+        closeModal('modal-consent');
+        if (!skip) alert('¡Preferencias guardadas!');
+    }
 
     // ================= LOGIN CON GOOGLE =================
     async function loginWithGoogle() {
