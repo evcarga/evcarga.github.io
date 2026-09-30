@@ -392,8 +392,11 @@ const cities = (await getCities()).slice(0, 18);
     </div>
 
     <div id="modal-offer" class="modal">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll">
-            <h2 class="text-2xl font-bold mb-6 text-slate-800 border-b border-slate-100 pb-3">Ofrecer Cargador</h2>
+        <div class="bg-white p-6 rounded-2xl w-full max-w-lg mx-3 shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll relative">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-3">
+                <h2 class="text-2xl font-bold text-slate-800">Ofrecer Cargador</h2>
+                <button type="button" onclick="closeModal('modal-offer')" class="text-slate-400 hover:text-red-500 font-bold text-xl w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center transition" aria-label="Cerrar">✕</button>
+            </div>
             <form id="form-offer" class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Título del anuncio</label>
@@ -769,10 +772,21 @@ const cities = (await getCities()).slice(0, 18);
             [...names].sort((a, b) => a.localeCompare(b)).map(n => `<option value="${escapeHtml(n)}">`).join('');
     }
 
+    // Al elegir una sugerencia de la lista, buscar de inmediato
+    document.getElementById('map-search').addEventListener('input', (e) => {
+        const v = normalize(e.target.value.trim());
+        const opts = [...document.querySelectorAll('#map-search-options option')].map(o => normalize(o.value));
+        if (v && opts.includes(v) && (e.inputType === 'insertReplacementText' || !e.inputType)) searchMap();
+    });
+    document.getElementById('map-search').addEventListener('change', () => searchMap());
+
     async function searchMap() {
         const raw = document.getElementById('map-search').value.trim();
         const term = normalize(raw);
         if (!term || !mainMap) return;
+        // evita repetir la misma búsqueda (input + change + submit)
+        if (searchMap.last === term && Date.now() - searchMap.at < 1500) return;
+        searchMap.last = term; searchMap.at = Date.now();
         document.getElementById('map-search').blur();
         // 1) Cargadores de esa provincia o ciudad
         const matches = chargersData.filter(c => c.lat && c.lng && (normalize(c.provincia) === term || normalize(c.city) === term));
