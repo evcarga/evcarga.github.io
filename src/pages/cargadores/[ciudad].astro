@@ -148,8 +148,8 @@ const jsonLd = {
             <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
             <script is:inline define:vars={{ pts: withCoords.map((c) => [c.lat, c.lng, c.title]) }}>
                 const map = L.map('city-map', { scrollWheelZoom: false });
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=cb1_2nsz_1_2e810fa90ac9971bc0c7f6b9', {
-                    attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 19,
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap', maxZoom: 19,
                 }).addTo(map);
                 const markers = pts.map(([lat, lng, t]) => L.marker([lat, lng], { title: t }).addTo(map).bindPopup(t.replace(/</g, '&lt;')));
                 map.fitBounds(L.featureGroup(markers).getBounds().pad(0.3), { maxZoom: 15 });
