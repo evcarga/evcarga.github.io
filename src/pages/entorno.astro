@@ -737,6 +737,7 @@ import { PLACES } from '../lib/ecuador-places.js';
         if (question.length < 3) return;
         const out = $('q-out'), btn = $('btn-ask');
         $('q-chips').classList.add('hidden'); // la respuesta queda justo debajo del campo
+        $('q').blur(); // cierra el teclado; al tocar el campo otra vez se inicia una nueva pregunta
         out.classList.remove('hidden'); out.innerHTML = '<span class="animate-pulse">🤖 Pensando…</span>';
         btn.disabled = true;
         try {
