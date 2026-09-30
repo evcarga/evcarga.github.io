@@ -518,7 +518,9 @@ import { PLACES } from '../lib/ecuador-places.js';
                     <p class="text-green-700 font-extrabold mt-auto pt-1">${l.price != null ? money(l.price) : 'A convenir'}</p>
                     <p class="text-[11px] text-slate-400 truncate">${escapeHtml(l.city || '')}${l.is_company && l.company_name ? ' · ' + escapeHtml(l.company_name) : ''}</p>
                 </div>
-            </button>`).join('') || '<p class="col-span-full text-sm text-slate-400 text-center py-8">No hay publicaciones con ese filtro.</p>';
+            </button>`).join('') || (listings.length
+            ? '<p class="col-span-full text-sm text-slate-400 text-center py-8">No hay publicaciones con ese filtro.</p>'
+            : '<div class="col-span-full text-center py-8"><p class="text-3xl mb-2">🛒</p><p class="text-sm text-slate-500 mb-3">Aún no hay publicaciones. ¡Sé el primero en ofrecer un producto o servicio!</p><button onclick="startPublish()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700">+ Publicar</button></div>');
     }
 
     async function showListing(id) {
