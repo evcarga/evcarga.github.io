@@ -1,0 +1,1024 @@
+---
+// Comunidad EV: marketplace, asistente, planificador, calculadora, apps, directorio y aportes
+import { PLACES } from '../lib/ecuador-places.js';
+---
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml">
+    <link rel="icon" href="/favicon-48.png?v=2" type="image/png" sizes="48x48">
+    <link rel="icon" href="/favicon-96.png?v=2" type="image/png" sizes="96x96">
+    <link rel="icon" href="/favicon-192.png?v=2" type="image/png" sizes="192x192">
+    <link rel="shortcut icon" href="/favicon.ico?v=2">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
+    <title>Comunidad EV Ecuador: Marketplace, Planificador de Rutas y Asistente | EvCarga</title>
+    <meta name="description" content="Comunidad de autos eléctricos en Ecuador: marketplace de productos y servicios EV, planificador de viajes con cargadores en ruta, calculadora de costos de carga, asistente con IA, apps recomendadas y directorio.">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#16a34a">
+    <link rel="canonical" href="https://evcarga.github.io/entorno.html">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="es_EC">
+    <meta property="og:site_name" content="EvCarga Ecuador">
+    <meta property="og:url" content="https://evcarga.github.io/entorno.html">
+    <meta property="og:title" content="Comunidad EV Ecuador | EvCarga">
+    <meta property="og:description" content="Marketplace EV, planificador de rutas con cargadores, calculadora de costos y asistente con IA.">
+    <meta property="og:image" content="https://evcarga.github.io/favicon-512.png">
+    <script is:inline src="https://cdn.tailwindcss.com"></script>
+    <script is:inline src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style is:global>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); z-index: 50; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal.active { display: flex; }
+        .modal > * { min-width: 0; } /* evita que imágenes grandes desborden la ventana en celular */
+        .field { width: 100%; border: 1px solid #e2e8f0; background: #f8fafc; padding: .5rem .75rem; border-radius: .5rem; font-size: 16px; outline: none; }
+        .field:focus { box-shadow: 0 0 0 2px #22c55e55; border-color: #22c55e; }
+        @media (min-width: 640px) { .field { font-size: .875rem; } }
+        .lbl { display: block; font-size: .68rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: .15rem; }
+        .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+        .chip { white-space: nowrap; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        #route-map { height: 360px; border-radius: .75rem; z-index: 0; }
+        .leaflet-popup-content p { margin: 0; }
+        .marker-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+        section[id] { scroll-margin-top: 110px; }
+    </style>
+</head>
+<body class="text-slate-700 pb-24">
+    <!-- Barra superior -->
+    <nav class="bg-white/90 backdrop-blur shadow-sm sticky top-0 z-40 border-b border-slate-100">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center gap-3">
+            <a href="/" class="flex items-center gap-2 shrink-0">
+                <img src="/favicon-96.png?v=2" alt="EvCarga" width="34" height="34" class="rounded-lg">
+                <span class="text-xl font-bold text-slate-800 tracking-tight hidden sm:inline">EvCar</span>
+            </a>
+            <div class="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+                <a href="/" class="bg-slate-900 text-white px-3 py-2 rounded-lg font-bold hover:bg-black transition whitespace-nowrap">🗺️ <span class="hidden sm:inline">Mapa de cargadores</span><span class="sm:hidden">Mapa</span></a>
+                <div id="nav-auth" class="flex items-center gap-2"></div>
+            </div>
+        </div>
+        <!-- Accesos rápidos -->
+        <div class="container mx-auto px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar text-xs font-semibold">
+            <a href="#market" class="chip bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-full">🛒 Marketplace</a>
+            <a href="#asistente" class="chip bg-slate-100 px-3 py-1.5 rounded-full">🤖 Asistente</a>
+            <a href="#planificador" class="chip bg-slate-100 px-3 py-1.5 rounded-full">🗺️ Planificador</a>
+            <a href="#calculadora" class="chip bg-slate-100 px-3 py-1.5 rounded-full">💰 Calculadora</a>
+            <a href="#programada" class="chip bg-slate-100 px-3 py-1.5 rounded-full">⏰ Carga programada</a>
+            <a href="#apps" class="chip bg-slate-100 px-3 py-1.5 rounded-full">📱 Apps</a>
+            <a href="#directorio" class="chip bg-slate-100 px-3 py-1.5 rounded-full">📇 Directorio</a>
+            <a href="#autonomias" class="chip bg-slate-100 px-3 py-1.5 rounded-full">📊 Autonomías</a>
+            <a href="#viajes" class="chip bg-slate-100 px-3 py-1.5 rounded-full">🚗 Viajes</a>
+        </div>
+    </nav>
+
+    <header class="bg-slate-900 text-white py-8 px-4">
+        <div class="container mx-auto max-w-5xl">
+            <h1 class="text-3xl md:text-4xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-green-300 to-white">Comunidad EV Ecuador</h1>
+            <p class="text-slate-300 text-sm md:text-base">Compra y vende productos y servicios para tu auto eléctrico, planifica viajes con los cargadores en ruta, calcula costos y resuelve dudas con el asistente.</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto max-w-5xl px-4 mt-6 space-y-6">
+
+        <!-- ============ MARKETPLACE ============ -->
+        <section id="market" class="card p-4 sm:p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">🛒 Marketplace EV</h2>
+                    <p class="text-xs text-slate-500">Productos, servicios, vehículos, cargadores y más. Todas las publicaciones son revisadas por el administrador.</p>
+                </div>
+                <div class="flex gap-2 shrink-0">
+                    <button onclick="openMyListings()" id="btn-my-listings" class="hidden bg-white border border-slate-300 px-3 py-2 rounded-lg text-sm font-bold hover:bg-slate-50">Mis publicaciones</button>
+                    <button onclick="startPublish()" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 shadow">+ Publicar</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
+                <input id="m-q" oninput="renderMarket()" placeholder="Buscar: wallbox, llantas, instalación…" class="field sm:col-span-2">
+                <select id="m-cat" onchange="renderMarket()" class="field"><option value="">Todas las categorías</option></select>
+                <select id="m-type" onchange="renderMarket()" class="field">
+                    <option value="">Todo</option><option value="producto">Productos</option><option value="servicio">Servicios</option><option value="empresa">Solo empresas</option>
+                </select>
+            </div>
+            <div id="m-list" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div class="h-56 bg-slate-100 rounded-xl animate-pulse"></div><div class="h-56 bg-slate-100 rounded-xl animate-pulse"></div><div class="h-56 bg-slate-100 rounded-xl animate-pulse"></div>
+            </div>
+        </section>
+
+        <!-- ============ ASISTENTE ============ -->
+        <section id="asistente" class="card p-4 sm:p-6">
+            <h2 class="text-xl font-bold text-slate-800">🤖 Asistente EV</h2>
+            <p class="text-xs text-slate-500 mb-3">Responde con las preguntas frecuentes de la comunidad y, si no están, con información general. Verifica siempre los datos importantes.</p>
+            <form onsubmit="event.preventDefault(); ask()" class="flex gap-2">
+                <input id="q" maxlength="500" placeholder="Ej: ¿cargo al 100% o al 80%? ¿cuánto cuesta el medidor?" class="field">
+                <button id="btn-ask" class="bg-sky-500 text-white px-4 rounded-lg font-bold hover:bg-sky-600 shrink-0">Preguntar</button>
+            </form>
+            <div id="q-chips" class="flex flex-wrap gap-1.5 mt-2"></div>
+            <div id="q-out" class="hidden mt-3 bg-sky-50 border border-sky-200 rounded-xl p-4 text-sm leading-relaxed"></div>
+            <details class="mt-4">
+                <summary class="cursor-pointer text-sm font-bold text-slate-700">Ver todas las preguntas frecuentes</summary>
+                <div id="faq-list" class="mt-2 divide-y divide-slate-100 text-sm"></div>
+            </details>
+        </section>
+
+        <!-- ============ PLANIFICADOR ============ -->
+        <section id="planificador" class="card p-4 sm:p-6">
+            <h2 class="text-xl font-bold text-slate-800">🗺️ Planificador de viajes</h2>
+            <p class="text-xs text-slate-500 mb-3">Traza tu ruta, calcula con qué batería llegas y mira los cargadores de EvCarga en el camino. Las autonomías son referenciales: ajústalas a tu carro.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div><label class="lbl">Origen</label><input id="p-from" list="ec-places" placeholder="Ej: Quito" class="field"></div>
+                <div><label class="lbl">Destino</label><input id="p-to" list="ec-places" placeholder="Ej: Manta" class="field"></div>
+                <div><label class="lbl">Vehículo</label><select id="p-model" onchange="presetModel()" class="field"></select></div>
+                <div><label class="lbl">Autonomía real al 100% (km)</label><input id="p-range" type="number" min="50" class="field"></div>
+                <div><label class="lbl">Batería al salir (%)</label><input id="p-batt" type="number" value="100" min="5" max="100" class="field"></div>
+                <div><label class="lbl">Conector de tu carro</label>
+                    <select id="p-conn" class="field"><option value="">Mostrar todos</option><option value="tipo 2">Tipo 2</option><option value="tipo 1">Tipo 1</option><option value="ccs2">CCS2</option><option value="gbt">GB/T</option><option value="chademo">CHAdeMO</option></select></div>
+                <div><label class="lbl">Velocidad promedio</label>
+                    <select id="p-speed" class="field"><option value="1">~90 km/h</option><option value="1.12">~100 km/h (+12%)</option><option value="1.3">~120 km/h (+30%)</option></select></div>
+                <div><label class="lbl">Terreno</label>
+                    <select id="p-terr" class="field"><option value="1">Plano / costa</option><option value="1.1" selected>Mixto</option><option value="1.2">Montañoso / sierra</option></select></div>
+            </div>
+            <label class="flex items-center gap-2 text-sm mt-2"><input id="p-ac" type="checkbox" checked class="w-4 h-4"> Aire acondicionado / calefacción (+5%)</label>
+            <button onclick="planTrip()" id="btn-plan" class="mt-3 w-full sm:w-auto bg-green-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-green-700 shadow">Planificar ruta</button>
+            <div id="p-out" class="hidden mt-4 space-y-3"></div>
+            <div id="route-map" class="hidden mt-3 border border-slate-200"></div>
+            <div id="p-chargers" class="mt-3 space-y-2"></div>
+        </section>
+
+        <!-- ============ CALCULADORA ============ -->
+        <section id="calculadora" class="card p-4 sm:p-6">
+            <h2 class="text-xl font-bold text-slate-800">💰 Calculadora de costos de carga</h2>
+            <p class="text-xs text-slate-500 mb-3">Suma energía, activación y tiempo, y lo convierte a costo por 100 km. Ej.: algunos puntos cobran $4 de activación + $0.10 por minuto + la energía.</p>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div class="col-span-2"><label class="lbl">Red / tarifa</label>
+                    <select id="c-red" onchange="presetRed()" class="field">
+                        <option value="conectz">Conectz (rápida DC)</option><option value="ecored">EcoRed</option><option value="mevo">Mevo / Evinka (ref.)</option>
+                        <option value="primax">Primax Pelileo ($7 / 32 min)</option><option value="casa">Carga en casa (ref.)</option><option value="manual">Manual</option>
+                    </select></div>
+                <div><label class="lbl">Energía (kWh)</label><input id="c-kwh" type="number" value="30" step="0.5" class="field"></div>
+                <div><label class="lbl">$ / kWh</label><input id="c-pkwh" type="number" value="0.17" step="0.01" class="field"></div>
+                <div><label class="lbl">Activación ($)</label><input id="c-act" type="number" value="4" step="0.1" class="field"></div>
+                <div><label class="lbl">Minutos</label><input id="c-min" type="number" value="40" class="field"></div>
+                <div><label class="lbl">$ / minuto</label><input id="c-pmin" type="number" value="0.10" step="0.01" class="field"></div>
+                <div><label class="lbl">Km que te dan</label><input id="c-km" type="number" value="180" class="field"></div>
+            </div>
+            <button onclick="calcCost()" class="mt-3 bg-green-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-green-700 shadow">Calcular</button>
+            <div id="c-out" class="hidden mt-3 bg-green-50 border border-green-200 rounded-xl p-4 text-sm"></div>
+        </section>
+
+        <!-- ============ CARGA PROGRAMADA ============ -->
+        <section id="programada" class="card p-4 sm:p-6">
+            <h2 class="text-xl font-bold text-slate-800">⏰ Carga programada (carga inteligente)</h2>
+            <p class="text-xs text-slate-500 mb-3">Calcula a qué hora configurar el fin de la carga en tu BYD según tu batería, el % actual y el % que quieres alcanzar.</p>
+            <div class="grid grid-cols-2 gap-2">
+                <div class="col-span-2"><label class="lbl">Modelo BYD</label><select id="s-model" onchange="calcSmart()" class="field"></select></div>
+                <div class="col-span-2"><label class="lbl">Cómo cargas</label>
+                    <select id="s-source" onchange="calcSmart()" class="field">
+                        <option value="7">Wallbox 7 kW (220V 32A)</option><option value="11">Wallbox 11 kW (trifásico)</option>
+                        <option value="7">Cargador portátil 220V 32A (~7 kW)</option><option value="3.5">Cargador portátil 220V 16A (~3.5 kW)</option>
+                        <option value="1.8">Tomacorriente 110V (~1.8 kW)</option>
+                    </select></div>
+                <div><label class="lbl">Batería actual (%)</label><input id="s-from" type="number" value="20" min="0" max="99" oninput="calcSmart()" class="field"></div>
+                <div><label class="lbl">Cargar hasta (%)</label><input id="s-to" type="number" value="80" min="1" max="100" oninput="calcSmart()" class="field"></div>
+                <div><label class="lbl">Hora de inicio</label><input id="s-start" type="time" value="22:00" oninput="calcSmart()" class="field"></div>
+                <div><label class="lbl">Precio energía ($/kWh)</label><input id="s-price" type="number" value="0.06" step="0.01" min="0" oninput="calcSmart()" class="field"></div>
+            </div>
+            <div id="s-out" class="mt-3 bg-green-50 border border-green-200 rounded-xl p-4 text-sm"></div>
+            <p class="text-[11px] text-slate-400 mt-2">Capacidad y potencia de carga AC según fichas técnicas (pueden variar por versión y año; revisa tu manual). Incluye ~10% de pérdidas y la carga más lenta por encima del 90%.</p>
+        </section>
+
+        <!-- ============ APPS ============ -->
+        <section id="apps" class="card p-4 sm:p-6">
+            <h2 class="text-xl font-bold text-slate-800">📱 Apps recomendadas</h2>
+            <p class="text-xs text-slate-500 mb-3">Las que usa la comunidad. Revisa siempre tarifas y condiciones en cada app.</p>
+            <h3 class="text-sm font-bold text-slate-700 mb-2">⚡ De carga (imprescindibles si tienes EV)</h3>
+            <div id="apps-carga" class="grid sm:grid-cols-2 gap-3 mb-4"></div>
+            <h3 class="text-sm font-bold text-slate-700 mb-2">🚗 Del carro y viaje</h3>
+            <div id="apps-auto" class="grid sm:grid-cols-2 gap-3"></div>
+        </section>
+
+        <!-- ============ DIRECTORIO ============ -->
+        <section id="directorio" class="card p-4 sm:p-6">
+            <div class="flex justify-between items-center gap-2 mb-3">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">📇 Directorio de la comunidad</h2>
+                    <p class="text-xs text-slate-500">Talleres, instaladores, llantas, seguros y redes de carga recomendados.</p>
+                </div>
+                <select id="d-cat" onchange="renderDir()" class="field max-w-[45%]"><option value="">Todas</option></select>
+            </div>
+            <div id="dir-list" class="grid sm:grid-cols-2 gap-2"></div>
+        </section>
+
+        <!-- ============ AUTONOMÍAS ============ -->
+        <section id="autonomias" class="card p-4 sm:p-6">
+            <h2 class="text-xl font-bold text-slate-800">📊 Autonomía real por modelo</h2>
+            <p class="text-xs text-slate-500 mb-3">Oficial (BYD Ecuador, ciclo NEDC) vs. real. <b>*</b> = estimado a partir de la cifra oficial; los demás son datos de la comunidad. ¡Aporta tu medición!</p>
+            <div class="hidden sm:block overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-left text-xs uppercase text-slate-400 border-b"><tr><th class="p-2">Modelo</th><th class="p-2">Oficial</th><th class="p-2">Sierra</th><th class="p-2">Costa</th><th class="p-2">Carretera</th><th class="p-2">Notas</th></tr></thead>
+                    <tbody id="db-table"></tbody>
+                </table>
+            </div>
+            <div id="db-cards" class="sm:hidden space-y-2"></div>
+            <h3 class="text-sm font-bold text-slate-700 mt-4 mb-2">Aportes de usuarios</h3>
+            <div id="db-user" class="text-sm text-slate-500">Cargando…</div>
+            <details class="mt-3">
+                <summary class="cursor-pointer text-sm font-bold text-green-700">+ Aportar mi medición</summary>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <div><label class="lbl">Modelo</label><input id="d-model" maxlength="60" placeholder="Ej: Yuan Pro 2026" class="field"></div>
+                    <div><label class="lbl">Zona</label><select id="d-zone" class="field"><option>Sierra</option><option>Costa</option><option>Carretera</option></select></div>
+                    <div><label class="lbl">Km reales al 100%</label><input id="d-km" type="number" min="1" class="field"></div>
+                    <div><label class="lbl">Nota</label><input id="d-note" maxlength="120" placeholder="Llantas, velocidad…" class="field"></div>
+                </div>
+                <button onclick="addAutonomia()" class="mt-2 bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Enviar dato</button>
+            </details>
+        </section>
+
+        <!-- ============ VIAJES ============ -->
+        <section id="viajes" class="card p-4 sm:p-6">
+            <h2 class="text-xl font-bold text-slate-800">🚗 Reportes de viajes</h2>
+            <p class="text-xs text-slate-500 mb-3">Ruta, velocidad, batería usada, costo y tiempo de carga.</p>
+            <div id="trip-list" class="space-y-2"></div>
+            <details class="mt-3">
+                <summary class="cursor-pointer text-sm font-bold text-green-700">+ Publicar mi reporte</summary>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                    <div class="col-span-2"><label class="lbl">Ruta</label><input id="t-ruta" maxlength="80" placeholder="Ej: Quito – Baños" class="field"></div>
+                    <div><label class="lbl">Velocidad (km/h)</label><input id="t-vel" type="number" class="field"></div>
+                    <div><label class="lbl">Batería usada (%)</label><input id="t-batt" type="number" class="field"></div>
+                    <div><label class="lbl">Costo carga ($)</label><input id="t-costo" type="number" step="0.1" class="field"></div>
+                    <div><label class="lbl">Tiempo de carga</label><input id="t-tiempo" maxlength="40" placeholder="35 min al 80%" class="field"></div>
+                    <div class="col-span-2"><label class="lbl">Comentario</label><input id="t-com" maxlength="160" class="field"></div>
+                </div>
+                <button onclick="addTrip()" class="mt-2 bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Publicar reporte</button>
+            </details>
+        </section>
+
+        <p class="text-[11px] text-slate-400 text-center">Precios y tarifas referenciales · Verifica siempre antes de pagar · Cuidado con comprobantes falsos · <a href="/privacidad.html" class="underline">Privacidad y Términos</a></p>
+    </main>
+
+    <!-- Botones flotantes: volver al mapa y soporte -->
+    <a href="/" class="fixed bottom-5 left-5 z-[45] bg-slate-900 text-white py-2.5 px-4 rounded-full shadow-xl border-2 border-white text-xs font-bold hover:bg-black transition">🗺️ Volver al mapa</a>
+    <a href="https://wa.me/593980407829?text=Hola,%20quiero%20hacer%20una%20pregunta" target="_blank" rel="noopener" class="fixed bottom-5 right-5 z-[45] bg-green-500 hover:bg-green-600 text-white py-2.5 px-4 rounded-full shadow-xl border-2 border-white text-xs font-bold uppercase tracking-wide transition">💬 Soporte</a>
+
+    <datalist id="ec-places">
+        {PLACES.map((p) => <option value={p.name}>{p.province}</option>)}
+    </datalist>
+
+    <!-- ===== Detalle de publicación ===== -->
+    <div id="modal-listing" class="modal" onclick="if(event.target===this) closeListing()">
+        <div class="bg-white rounded-2xl w-full max-w-lg mx-3 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="relative">
+                <img id="l-img" class="w-full aspect-[4/3] object-cover bg-slate-100 rounded-t-2xl" alt="">
+                <button onclick="closeListing()" class="absolute top-3 right-3 bg-white/90 w-9 h-9 rounded-full font-bold text-slate-600 shadow" aria-label="Cerrar">✕</button>
+                <span id="l-company" class="hidden absolute top-3 left-3 bg-blue-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">🏢 Empresa</span>
+            </div>
+            <div id="l-thumbs" class="flex gap-1.5 px-4 pt-3 overflow-x-auto no-scrollbar"></div>
+            <div class="p-4 space-y-2">
+                <div class="flex justify-between items-start gap-2">
+                    <h3 id="l-title" class="text-lg font-bold text-slate-800 leading-tight"></h3>
+                    <span id="l-price" class="text-lg font-extrabold text-green-700 whitespace-nowrap"></span>
+                </div>
+                <p id="l-meta" class="text-xs text-slate-500"></p>
+                <div id="l-private"></div>
+                <button onclick="shareListing()" class="w-full bg-white border border-slate-300 py-2 rounded-lg font-bold text-sm hover:bg-slate-50">🔗 Compartir publicación</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Publicar / editar ===== -->
+    <div id="modal-publish" class="modal">
+        <form id="form-publish" class="bg-white p-4 sm:p-5 rounded-2xl w-full max-w-md mx-3 shadow-2xl max-h-[94vh] overflow-y-auto space-y-2.5">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                <h2 id="pub-title" class="text-xl font-bold text-slate-800">Publicar en el marketplace</h2>
+                <button type="button" onclick="closeModal('modal-publish')" class="text-slate-400 hover:text-red-500 font-bold text-xl" aria-label="Cerrar">✕</button>
+            </div>
+            <input type="hidden" id="pub-id">
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="lbl">Tipo</label><select id="pub-kind" class="field"><option value="producto">Producto</option><option value="servicio">Servicio</option></select></div>
+                <div><label class="lbl">Categoría</label>
+                    <select id="pub-cat" class="field">
+                        <option>Accesorios</option><option>Cargadores</option><option>Vehículos</option><option>Llantas</option><option>Repuestos</option>
+                        <option>Instalación</option><option>Servicios</option><option>Seguros</option><option>Otros</option>
+                    </select></div>
+            </div>
+            <div><label class="lbl">Título</label><input id="pub-name" required minlength="3" maxlength="120" placeholder="Ej: Wallbox 7 kW nuevo" class="field"></div>
+            <div class="grid grid-cols-2 gap-2">
+                <div><label class="lbl">Precio (USD)</label><input id="pub-price" type="number" min="0" step="0.01" placeholder="Vacío = a convenir" class="field"></div>
+                <div><label class="lbl">Ciudad</label><input id="pub-city" list="ec-places" maxlength="80" placeholder="Escribe y elige" class="field"></div>
+            </div>
+            <div><label class="lbl">Descripción</label><textarea id="pub-desc" rows="3" maxlength="3000" placeholder="Estado, características, envío, garantía…" class="field"></textarea></div>
+            <div>
+                <label class="lbl">Imágenes (hasta 6)</label>
+                <input id="pub-files" type="file" accept="image/*" multiple class="text-sm w-full">
+                <div id="pub-previews" class="flex gap-1.5 mt-1.5 flex-wrap"></div>
+                <p class="text-[10px] text-slate-400">Se convierten a WebP y se reducen para cargar rápido.</p>
+            </div>
+            <label class="flex items-center gap-2 text-sm"><input id="pub-company" type="checkbox" class="w-4 h-4"> Publico como empresa</label>
+            <input id="pub-company-name" maxlength="80" placeholder="Nombre de la empresa" class="field hidden">
+            <label class="flex items-center gap-2 text-sm"><input id="pub-share" type="checkbox" class="w-4 h-4"> Compartir mi número (solo lo ven usuarios registrados)</label>
+            <input id="pub-phone" type="tel" maxlength="20" placeholder="Tu número celular (ej: 0991234567)" class="field hidden">
+            <button type="submit" id="btn-publish" class="w-full bg-green-600 text-white py-2.5 rounded-lg font-bold hover:bg-green-700 shadow">Enviar a revisión</button>
+            <p class="text-[10px] text-slate-400 text-center">El administrador revisa cada publicación antes de mostrarla.</p>
+        </form>
+    </div>
+
+    <!-- ===== Mis publicaciones ===== -->
+    <div id="modal-mine" class="modal" onclick="if(event.target===this) closeModal('modal-mine')">
+        <div class="bg-white p-4 sm:p-5 rounded-2xl w-full max-w-lg mx-3 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2 mb-3">
+                <h2 class="text-xl font-bold text-slate-800">Mis publicaciones</h2>
+                <button onclick="closeModal('modal-mine')" class="text-slate-400 hover:text-red-500 font-bold text-xl" aria-label="Cerrar">✕</button>
+            </div>
+            <div id="mine-list" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <!-- ===== Ingresar ===== -->
+    <div id="modal-login" class="modal">
+        <div class="bg-white p-5 sm:p-7 rounded-2xl w-full max-w-sm mx-3 shadow-2xl border-t-4 border-slate-800 max-h-[94vh] overflow-y-auto">
+            <h2 class="text-xl font-bold mb-1 text-slate-800">Ingresar</h2>
+            <p id="login-note" class="text-xs text-slate-500 mb-3">Ingresa para ver descripciones y contactos.</p>
+            <form id="form-login" class="space-y-2.5">
+                <input type="email" id="login-email" placeholder="Correo electrónico" class="field" required>
+                <input type="password" id="login-pin" placeholder="PIN (4 dígitos)" class="field text-center tracking-[0.4em] placeholder:tracking-normal" required inputmode="numeric" maxlength="4">
+                <button type="submit" class="w-full bg-slate-900 text-white py-2.5 rounded-lg font-bold hover:bg-black">Iniciar sesión</button>
+            </form>
+            <button type="button" onclick="loginWithGoogle()" class="mt-2.5 w-full bg-white border border-slate-300 py-2.5 rounded-lg font-bold hover:bg-slate-50">Continuar con Google</button>
+            <p class="text-center text-sm mt-3">¿No tienes cuenta? <button onclick="closeModal('modal-login'); openModal('modal-register')" class="text-green-700 font-bold hover:underline">Regístrate gratis</button></p>
+            <button onclick="closeModal('modal-login')" class="mt-1 text-sm text-slate-400 w-full hover:text-slate-600">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- ===== Registro (sin celular) ===== -->
+    <div id="modal-register" class="modal">
+        <div class="bg-white p-5 sm:p-7 rounded-2xl w-full max-w-sm mx-3 shadow-2xl border-t-4 border-green-500 max-h-[94vh] overflow-y-auto">
+            <h2 class="text-xl font-bold mb-3 text-slate-800">Crear cuenta</h2>
+            <form id="form-register" class="space-y-2.5">
+                <input type="text" id="reg-name" placeholder="Nombre" class="field" required maxlength="80">
+                <input type="email" id="reg-email" placeholder="Correo electrónico" class="field" required>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="password" id="reg-pin" placeholder="PIN (4 dígitos)" class="field text-center tracking-[0.4em] placeholder:tracking-normal placeholder:text-sm" required inputmode="numeric" maxlength="4">
+                    <input type="password" id="reg-pin2" placeholder="Confirmar PIN" class="field text-center tracking-[0.4em] placeholder:tracking-normal placeholder:text-sm" required inputmode="numeric" maxlength="4">
+                </div>
+                <div class="bg-green-50 border border-green-100 rounded-lg px-3 py-2 text-xs text-slate-600">
+                    <p class="font-semibold text-slate-700 mb-1">Recibir novedades (opcional) por:</p>
+                    <label class="inline-flex items-center gap-1.5 mr-4"><input type="checkbox" id="reg-c-email" class="w-4 h-4"> Correo</label>
+                    <label class="inline-flex items-center gap-1.5"><input type="checkbox" id="reg-c-wa" class="w-4 h-4"> WhatsApp</label>
+                </div>
+                <label class="flex items-start gap-2 text-[11px] text-slate-500"><input type="checkbox" required class="mt-0.5 w-4 h-4 shrink-0"><span class="leading-snug">Acepto la <a href="/privacidad.html" target="_blank" class="text-green-700 underline">Política de Privacidad y Términos</a>.</span></label>
+                <button type="submit" id="btn-register" class="w-full bg-green-600 text-white py-2.5 rounded-lg font-bold hover:bg-green-700">Registrarme</button>
+            </form>
+            <button type="button" onclick="loginWithGoogle()" class="mt-2.5 w-full bg-white border border-slate-300 py-2.5 rounded-lg font-bold hover:bg-slate-50">Registrarme con Google</button>
+            <p class="text-[11px] text-slate-400 text-center mt-1.5">Al continuar con Google aceptas la <a href="/privacidad.html" target="_blank" class="underline">Política de Privacidad</a>.</p>
+            <button onclick="closeModal('modal-register')" class="mt-1 text-sm text-slate-400 w-full hover:text-slate-600">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- ===== Aceptar términos (cuentas de Google nuevas) ===== -->
+    <div id="modal-terms" class="modal">
+        <form id="form-terms" class="bg-white p-5 rounded-2xl w-full max-w-sm mx-3 shadow-2xl border-t-4 border-green-500 space-y-2.5">
+            <h2 class="text-xl font-bold text-slate-800">Un último paso</h2>
+            <label class="flex items-start gap-2 text-sm text-slate-600"><input id="terms-ok" type="checkbox" required class="mt-0.5 w-4 h-4 shrink-0"><span>Acepto la <a href="/privacidad.html" target="_blank" class="text-green-700 underline">Política de Privacidad y Términos</a>.</span></label>
+            <button type="submit" class="w-full bg-green-600 text-white py-2.5 rounded-lg font-bold hover:bg-green-700">Continuar</button>
+            <button type="button" onclick="logout()" class="w-full text-sm text-slate-400">Salir</button>
+        </form>
+    </div>
+
+<script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script is:inline>
+    // ================= CONFIGURACIÓN =================
+    const SUPABASE_URL = 'https://yjnlfewsgksdsvsimdjs.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqbmxmZXdzZ2tzZHN2c2ltZGpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3NTk4OTgsImV4cCI6MjA3OTMzNTg5OH0.ysDsAdyn3k2i51xnAkJFGKtEWpQ3laxWV7rpjvFIF8E';
+    const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const PIN_SUFFIX = '99'; // igual que index.html
+    const WA_SUPPORT = '593980407829';
+
+    let currentUser = null, currentProfile = null;
+    let listings = [], currentListing = null;
+
+    const $ = (id) => document.getElementById(id);
+    const openModal = (id) => $(id).classList.add('active');
+    const closeModal = (id) => $(id).classList.remove('active');
+    const money = (n) => '$' + Number(n).toLocaleString('es-EC', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 });
+    function escapeHtml(s) { return s == null ? '' : String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;'); }
+    function normalize(s) { return (s || '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+    const waNumber = (p) => (p || '').replace(/\D/g, '').replace(/^0/, '593');
+    function requireLogin(msg) {
+        $('login-note').innerText = msg || 'Ingresa para continuar.';
+        openModal('modal-login');
+    }
+
+    // ================= SESIÓN =================
+    async function initSession() {
+        const { data: { session } } = await _supabase.auth.getSession();
+        currentUser = session?.user || null;
+        if (location.hash.includes('access_token')) history.replaceState(null, '', location.pathname + location.search);
+        currentProfile = null;
+        if (currentUser) {
+            const { data } = await _supabase.from('profiles').select('full_name, phone, role, terms_accepted_at').eq('id', currentUser.id).single();
+            currentProfile = data;
+            if (data && !data.terms_accepted_at) openModal('modal-terms');
+        }
+        renderNav();
+        await loadMarket();
+        renderDir();
+        loadCommunity();
+        openFromLink();
+    }
+
+    function renderNav() {
+        const nav = $('nav-auth');
+        if (currentUser) {
+            const name = currentProfile?.full_name || currentUser.email;
+            nav.innerHTML = `<span class="hidden md:inline text-xs text-green-700 font-semibold">Hola, ${escapeHtml(name)}</span>
+                <button onclick="logout()" class="bg-slate-100 px-3 py-2 rounded-lg font-bold hover:bg-slate-200">Salir</button>`;
+            $('btn-my-listings').classList.remove('hidden');
+        } else {
+            nav.innerHTML = `<button onclick="requireLogin('Ingresa para ver descripciones y contactos.')" class="text-slate-600 font-semibold px-1 sm:px-2">Ingresar</button>
+                <button onclick="openModal('modal-register')" class="bg-green-600 text-white px-3 py-2 rounded-lg font-bold hover:bg-green-700">Registro</button>`;
+            $('btn-my-listings').classList.add('hidden');
+        }
+    }
+
+    $('form-login').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pin = $('login-pin').value.trim();
+        if (!/^\d{4}$/.test(pin)) return alert('El PIN debe tener 4 dígitos');
+        const { error } = await _supabase.auth.signInWithPassword({ email: $('login-email').value.trim(), password: pin + PIN_SUFFIX });
+        if (error) return alert('Correo o PIN incorrecto');
+        closeModal('modal-login'); $('form-login').reset();
+        await initSession();
+        if (currentListing) showListing(currentListing.id);
+    });
+
+    $('form-register').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pin = $('reg-pin').value.trim();
+        if (!/^\d{4}$/.test(pin)) return alert('El PIN debe tener exactamente 4 dígitos');
+        if (pin !== $('reg-pin2').value.trim()) return alert('Los PIN no coinciden');
+        const btn = $('btn-register'); btn.disabled = true; btn.innerText = 'Creando…';
+        const { data, error } = await _supabase.auth.signUp({
+            email: $('reg-email').value.trim(),
+            password: pin + PIN_SUFFIX,
+            options: { data: { full_name: $('reg-name').value.trim(), consent_email: $('reg-c-email').checked, consent_whatsapp: $('reg-c-wa').checked, terms_accepted: true } }
+        });
+        btn.disabled = false; btn.innerText = 'Registrarme';
+        if (error) return alert(error.message);
+        $('form-register').reset(); closeModal('modal-register');
+        if (data.session) { await initSession(); if (currentListing) showListing(currentListing.id); }
+        else requireLogin('¡Cuenta creada! Ingresa con tu correo y PIN.');
+    });
+
+    $('form-terms').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const { error } = await _supabase.from('profiles').update({ terms_accepted_at: new Date().toISOString() }).eq('id', currentUser.id);
+        if (error) return alert(error.message);
+        closeModal('modal-terms');
+    });
+
+    async function loginWithGoogle() {
+        const { error } = await _supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname + location.search } });
+        if (error) alert(error.message);
+    }
+    async function logout() { await _supabase.auth.signOut(); location.reload(); }
+    _supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session?.user?.id !== currentUser?.id) initSession();
+    });
+
+    // ================= MARKETPLACE =================
+    const PUBLIC_COLS = 'id,kind,category,title,price,city,images,is_company,company_name,status,created_at';
+    async function loadMarket() {
+        const cols = currentUser ? '*' : PUBLIC_COLS;
+        const { data, error } = await _supabase.from('market_listings').select(cols).eq('status', 'aprobado').order('created_at', { ascending: false });
+        if (error) { $('m-list').innerHTML = `<p class="col-span-full text-sm text-red-600">No se pudo cargar el marketplace.</p>`; return console.error(error); }
+        listings = data || [];
+        const cats = [...new Set(listings.map(l => l.category))].sort();
+        const sel = $('m-cat'), cur = sel.value;
+        sel.innerHTML = '<option value="">Todas las categorías</option>' + cats.map(c => `<option ${c === cur ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+        renderMarket();
+    }
+
+    function renderMarket() {
+        const q = normalize($('m-q').value), cat = $('m-cat').value, type = $('m-type').value;
+        const list = listings.filter(l =>
+            (!cat || l.category === cat) &&
+            (!type || (type === 'empresa' ? l.is_company : l.kind === type)) &&
+            (!q || normalize([l.title, l.category, l.city, l.company_name, l.description].join(' ')).includes(q)));
+        $('m-list').innerHTML = list.map(l => `
+            <button onclick="showListing(${l.id})" class="text-left bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-lg hover:border-green-400 transition flex flex-col">
+                <div class="relative">
+                    <img src="${escapeHtml(l.images?.[0] || '/favicon-512.png')}" alt="${escapeHtml(l.title)}" loading="lazy" class="w-full aspect-[4/3] object-cover bg-slate-100">
+                    ${l.is_company ? '<span class="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">🏢 Empresa</span>' : ''}
+                    <span class="absolute top-2 right-2 bg-white/90 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">${l.kind === 'servicio' ? 'Servicio' : 'Producto'}</span>
+                </div>
+                <div class="p-2.5 flex-grow flex flex-col">
+                    <p class="font-semibold text-slate-800 text-sm leading-snug line-clamp-2">${escapeHtml(l.title)}</p>
+                    <p class="text-green-700 font-extrabold mt-auto pt-1">${l.price != null ? money(l.price) : 'A convenir'}</p>
+                    <p class="text-[11px] text-slate-400 truncate">${escapeHtml(l.city || '')}${l.is_company && l.company_name ? ' · ' + escapeHtml(l.company_name) : ''}</p>
+                </div>
+            </button>`).join('') || '<p class="col-span-full text-sm text-slate-400 text-center py-8">No hay publicaciones con ese filtro.</p>';
+    }
+
+    async function showListing(id) {
+        let l = listings.find(x => x.id === id);
+        if (!l || (currentUser && l.description === undefined)) {
+            const { data } = await _supabase.from('market_listings').select(currentUser ? '*' : PUBLIC_COLS).eq('id', id).maybeSingle();
+            if (!data) return alert('Esta publicación ya no está disponible.');
+            l = data;
+        }
+        currentListing = l;
+        const imgs = l.images?.length ? l.images : ['/favicon-512.png'];
+        $('l-img').src = imgs[0]; $('l-img').alt = l.title;
+        $('l-thumbs').innerHTML = imgs.length > 1 ? imgs.map(u => `<img src="${escapeHtml(u)}" onclick="$('l-img').src=this.src" class="w-14 h-14 object-cover rounded-lg border border-slate-200 cursor-pointer" loading="lazy" alt="">`).join('') : '';
+        $('l-company').classList.toggle('hidden', !l.is_company);
+        $('l-company').innerText = l.is_company ? '🏢 ' + (l.company_name || 'Empresa') : '';
+        $('l-title').innerText = l.title;
+        $('l-price').innerText = l.price != null ? money(l.price) : 'A convenir';
+        $('l-meta').innerText = [l.kind === 'servicio' ? 'Servicio' : 'Producto', l.category, l.city].filter(Boolean).join(' · ');
+        const priv = $('l-private');
+        if (!currentUser) {
+            priv.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-4 text-center">
+                <p class="text-sm text-slate-600 mb-2">🔒 Regístrate gratis para ver la descripción y el contacto del vendedor.</p>
+                <div class="flex gap-2 justify-center">
+                    <button onclick="openModal('modal-register')" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Registrarme</button>
+                    <button onclick="requireLogin('Ingresa para ver la descripción y el contacto.')" class="bg-white border border-slate-300 px-4 py-2 rounded-lg font-bold text-sm">Ingresar</button>
+                </div></div>`;
+        } else {
+            const phone = l.share_phone ? l.contact_phone : null;
+            const msg = encodeURIComponent(`Hola, vi tu publicación "${l.title}" en EvCarga. ¿Sigue disponible?`);
+            priv.innerHTML = `<p class="text-sm text-slate-700 whitespace-pre-line">${escapeHtml(l.description || 'Sin descripción.')}</p>
+                ${phone ? `<div class="grid grid-cols-2 gap-2 pt-1">
+                    <a href="https://wa.me/${waNumber(phone)}?text=${msg}" target="_blank" rel="noopener" class="bg-green-600 text-white text-center py-2.5 rounded-lg font-bold text-sm">💬 WhatsApp</a>
+                    <a href="tel:${escapeHtml(phone)}" class="bg-slate-900 text-white text-center py-2.5 rounded-lg font-bold text-sm">📞 ${escapeHtml(phone)}</a></div>`
+                  : `<p class="text-xs text-slate-400 italic">El vendedor prefirió no compartir su número. Escríbenos por Soporte y te ponemos en contacto.</p>`}`;
+        }
+        history.replaceState(null, '', `?p=${l.id}#market`);
+        openModal('modal-listing');
+    }
+
+    function closeListing() {
+        closeModal('modal-listing');
+        currentListing = null;
+        history.replaceState(null, '', location.pathname);
+    }
+
+    async function shareListing() {
+        const l = currentListing; if (!l) return;
+        const url = `${location.origin}/entorno.html?p=${l.id}`;
+        const text = `${l.title} — ${l.price != null ? money(l.price) : 'A convenir'} | Marketplace EvCarga`;
+        if (navigator.share) { try { await navigator.share({ title: l.title, text, url }); return; } catch (e) { /* cancelado */ } }
+        try { await navigator.clipboard.writeText(url); alert('Enlace copiado: ' + url); }
+        catch (e) { prompt('Copia el enlace:', url); }
+    }
+
+    function openFromLink() {
+        const id = parseInt(new URLSearchParams(location.search).get('p'));
+        if (id) showListing(id);
+    }
+
+    // ----- Publicar -----
+    let pendingFiles = [], keptImages = [];
+    function startPublish(l) {
+        if (!currentUser) return requireLogin('Ingresa o regístrate para publicar en el marketplace.');
+        $('form-publish').reset(); pendingFiles = []; keptImages = l?.images ? [...l.images] : [];
+        $('pub-id').value = l?.id || '';
+        $('pub-title').innerText = l ? 'Editar publicación' : 'Publicar en el marketplace';
+        if (l) {
+            $('pub-kind').value = l.kind; $('pub-cat').value = l.category; $('pub-name').value = l.title;
+            $('pub-price').value = l.price ?? ''; $('pub-city').value = l.city || ''; $('pub-desc').value = l.description || '';
+            $('pub-company').checked = l.is_company; $('pub-company-name').value = l.company_name || '';
+            $('pub-share').checked = l.share_phone;
+        }
+        togglePubFields(); renderPreviews();
+        closeModal('modal-mine');
+        openModal('modal-publish');
+    }
+
+    function togglePubFields() {
+        $('pub-company-name').classList.toggle('hidden', !$('pub-company').checked);
+        // Si comparte número y no tiene uno en su perfil, se le pide
+        $('pub-phone').classList.toggle('hidden', !($('pub-share').checked && !currentProfile?.phone));
+    }
+    $('pub-company').addEventListener('change', togglePubFields);
+    $('pub-share').addEventListener('change', togglePubFields);
+
+    $('pub-files').addEventListener('change', (e) => {
+        const files = [...e.target.files].filter(f => f.type.startsWith('image/'));
+        pendingFiles = pendingFiles.concat(files).slice(0, 6 - keptImages.length);
+        e.target.value = '';
+        renderPreviews();
+    });
+
+    function renderPreviews() {
+        const kept = keptImages.map((u, i) => `<div class="relative"><img src="${escapeHtml(u)}" class="w-16 h-16 object-cover rounded-lg border"><button type="button" onclick="keptImages.splice(${i},1);renderPreviews()" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white w-5 h-5 rounded-full text-[10px]">✕</button></div>`);
+        const fresh = pendingFiles.map((f, i) => `<div class="relative"><img src="${URL.createObjectURL(f)}" class="w-16 h-16 object-cover rounded-lg border"><button type="button" onclick="pendingFiles.splice(${i},1);renderPreviews()" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white w-5 h-5 rounded-full text-[10px]">✕</button></div>`);
+        $('pub-previews').innerHTML = kept.concat(fresh).join('');
+    }
+
+    // Convierte una imagen a WebP (máx. 1280 px) en el navegador
+    function toWebp(file, maxSide = 1280, quality = 0.8) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(img.width * scale); canvas.height = Math.round(img.height * scale);
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob(b => b ? resolve(b) : reject(new Error('No se pudo convertir la imagen')), 'image/webp', quality);
+                URL.revokeObjectURL(img.src);
+            };
+            img.onerror = () => reject(new Error('Imagen no válida'));
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    $('form-publish').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!currentUser) return requireLogin();
+        if (!keptImages.length && !pendingFiles.length) return alert('Agrega al menos una imagen.');
+        if ($('pub-company').checked && !$('pub-company-name').value.trim()) return alert('Escribe el nombre de la empresa.');
+        const share = $('pub-share').checked;
+        let phone = currentProfile?.phone || null;
+        if (share && !phone) {
+            phone = $('pub-phone').value.trim();
+            if (!/^\+?\d{9,15}$/.test(phone.replace(/[\s-]/g, ''))) return alert('Escribe un número celular válido para compartir.');
+            await _supabase.from('profiles').update({ phone }).eq('id', currentUser.id);
+            currentProfile = { ...currentProfile, phone };
+        }
+        const btn = $('btn-publish'); btn.disabled = true; btn.innerText = 'Subiendo imágenes…';
+        try {
+            const urls = [...keptImages];
+            for (const f of pendingFiles) {
+                const blob = await toWebp(f);
+                if (blob.size > 1024 * 1024) throw new Error('Una imagen sigue pesando más de 1 MB. Usa una foto más pequeña.');
+                const path = `${currentUser.id}/${crypto.randomUUID()}.webp`;
+                const { error } = await _supabase.storage.from('market').upload(path, blob, { contentType: 'image/webp', cacheControl: '31536000' });
+                if (error) throw error;
+                urls.push(_supabase.storage.from('market').getPublicUrl(path).data.publicUrl);
+            }
+            btn.innerText = 'Guardando…';
+            const price = $('pub-price').value;
+            const payload = {
+                kind: $('pub-kind').value, category: $('pub-cat').value, title: $('pub-name').value.trim(),
+                price: price === '' ? null : parseFloat(price), city: $('pub-city').value.trim() || null,
+                description: $('pub-desc').value.trim() || null, images: urls,
+                is_company: $('pub-company').checked, company_name: $('pub-company').checked ? $('pub-company-name').value.trim() : null,
+                share_phone: share, contact_phone: share ? phone : null
+            };
+            const id = $('pub-id').value;
+            const { error } = id
+                ? await _supabase.from('market_listings').update(payload).eq('id', id)
+                : await _supabase.from('market_listings').insert([payload]);
+            if (error) throw error;
+            closeModal('modal-publish');
+            alert('¡Listo! Tu publicación quedó en revisión. Aparecerá cuando el administrador la apruebe.');
+            loadMarket();
+        } catch (err) {
+            alert('No se pudo publicar: ' + err.message);
+        } finally {
+            btn.disabled = false; btn.innerText = 'Enviar a revisión';
+        }
+    });
+
+    async function openMyListings() {
+        if (!currentUser) return requireLogin();
+        const { data } = await _supabase.from('market_listings').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+        window._mine = data || [];
+        const badge = { pendiente: 'bg-yellow-100 text-yellow-800', aprobado: 'bg-green-100 text-green-800', rechazado: 'bg-red-100 text-red-700' };
+        $('mine-list').innerHTML = window._mine.map(l => `
+            <div class="flex gap-3 items-center border border-slate-200 rounded-xl p-2">
+                <img src="${escapeHtml(l.images?.[0] || '/favicon-96.png')}" class="w-14 h-14 object-cover rounded-lg" alt="">
+                <div class="flex-grow min-w-0">
+                    <p class="font-semibold text-sm truncate">${escapeHtml(l.title)}</p>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${badge[l.status]}">${l.status.toUpperCase()}</span>
+                    ${l.admin_note ? `<p class="text-[11px] text-slate-500 mt-0.5">Nota: ${escapeHtml(l.admin_note)}</p>` : ''}
+                </div>
+                <div class="flex flex-col gap-1 text-xs shrink-0">
+                    <button onclick="startPublish(window._mine.find(x=>x.id===${l.id}))" class="text-blue-600 font-bold">Editar</button>
+                    <button onclick="deleteListing(${l.id})" class="text-red-600 font-bold">Eliminar</button>
+                </div>
+            </div>`).join('') || '<p class="text-sm text-slate-400 text-center py-6">Aún no has publicado nada.</p>';
+        openModal('modal-mine');
+    }
+
+    async function deleteListing(id) {
+        if (!confirm('¿Eliminar esta publicación?')) return;
+        const { error } = await _supabase.from('market_listings').delete().eq('id', id);
+        if (error) return alert(error.message);
+        openMyListings(); loadMarket();
+    }
+
+    // ================= ASISTENTE =================
+    let FAQ = [];
+    async function loadFaq() {
+        const { data } = await _supabase.from('faq').select('id,q,a').order('sort_order');
+        FAQ = data || [];
+        $('faq-list').innerHTML = FAQ.map(f => `<details class="py-2"><summary class="cursor-pointer font-semibold text-slate-800">${escapeHtml(f.q)}</summary><p class="mt-1 text-slate-600">${escapeHtml(f.a)}</p></details>`).join('');
+        $('q-chips').innerHTML = FAQ.slice(0, 6).map(f => `<button onclick="askText(this.innerText)" class="bg-slate-100 hover:bg-sky-100 text-xs px-2.5 py-1.5 rounded-full">${escapeHtml(f.q)}</button>`).join('');
+    }
+    function askText(t) { $('q').value = t; ask(); }
+
+    async function ask() {
+        const question = $('q').value.trim();
+        if (question.length < 3) return;
+        const out = $('q-out'), btn = $('btn-ask');
+        out.classList.remove('hidden'); out.innerHTML = '<span class="animate-pulse">🤖 Pensando…</span>';
+        btn.disabled = true;
+        try {
+            const res = await fetch(`${SUPABASE_URL}/functions/v1/asistente`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+                body: JSON.stringify({ question })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Error del asistente');
+            out.innerHTML = `<p class="whitespace-pre-line">🤖 ${escapeHtml(data.answer)}</p>
+                <p class="text-[11px] text-slate-500 mt-2">${data.from_faq ? '📚 Basado en la comunidad: ' + data.related.map(r => escapeHtml(r.q)).join(' · ') : 'ℹ️ Respuesta general (no está en las preguntas de la comunidad). Verifica antes de decidir.'}</p>`;
+        } catch (err) {
+            out.innerHTML = `⚠️ ${escapeHtml(err.message)}`;
+        } finally { btn.disabled = false; }
+    }
+
+    // ================= PLANIFICADOR =================
+    // Autonomía real aproximada (km al 100%) — referencial, ajustable
+    const VEHICLES = [
+        ['BYD Seagull 300', 240], ['BYD Seagull 400', 270], ['BYD Dolphin', 320], ['BYD Yuan Pro', 300], ['BYD Yuan Plus', 380],
+        ['BYD Sealion 7', 345], ['BYD Seal', 420], ['BYD Han', 480],
+        ['Kia EV5', 400], ['Kia EV6', 450], ['Kia Niro EV', 400], ['Kia Soul EV', 380],
+        ['Hyundai Kona EV', 400], ['Hyundai Ioniq 5', 430], ['MG4', 400], ['MG ZS EV', 300],
+        ['JAC E10X', 250], ['JAC E-JS4', 330], ['Renault Kwid E-Tech', 220], ['GWM Ora 03', 300],
+        ['Volvo EX30', 330], ['Tesla Model 3', 430], ['Tesla Model Y', 400], ['Nissan Leaf (40 kWh)', 240],
+        ['Otro (escribe tu autonomía)', 0]
+    ];
+    $('p-model').innerHTML = VEHICLES.map((v, i) => `<option value="${i}">${v[0]}${v[1] ? ` (~${v[1]} km)` : ''}</option>`).join('');
+    function presetModel() {
+        const v = VEHICLES[$('p-model').value];
+        $('p-range').value = v[1] || '';
+        if (!v[1]) $('p-range').focus();
+    }
+    presetModel();
+
+    let routeMap = null, routeLayer = null, allChargers = null;
+    async function geocode(q) {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ec&q=${encodeURIComponent(q)}`);
+        const r = await res.json();
+        if (!r.length) throw new Error(`No encontré "${q}" en Ecuador.`);
+        return [parseFloat(r[0].lat), parseFloat(r[0].lon)];
+    }
+    const kmBetween = (a, b) => {
+        const R = 6371, r = Math.PI / 180, dLat = (b[0] - a[0]) * r, dLng = (b[1] - a[1]) * r;
+        const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLng / 2) ** 2;
+        return 2 * R * Math.asin(Math.sqrt(h));
+    };
+    const maxKw = (p) => Math.max(0, ...[...String(p || '').matchAll(/(\d+(?:[.,]\d+)?)\s*kw/gi)].map(m => parseFloat(m[1].replace(',', '.'))));
+    function connOk(c, conn) {
+        if (!conn) return true;
+        const t = normalize(c.charger_type).replace(/\s+/g, ' ');
+        const map = { 'tipo 2': /tipo 2/, 'tipo 1': /tipo 1|cs1/, 'ccs2': /ccs2|css2|cs2/, 'gbt': /gbt|gb\/t/, 'chademo': /chademo/ };
+        return map[conn].test(t) || /tomacorriente|toma 2/.test(t); // tomacorriente: con cargador portátil
+    }
+
+    async function planTrip() {
+        const from = $('p-from').value.trim(), to = $('p-to').value.trim();
+        const range = +$('p-range').value, start = +$('p-batt').value || 100;
+        const out = $('p-out');
+        if (!from || !to) return alert('Escribe origen y destino.');
+        if (!range) return alert('Escribe la autonomía real de tu carro al 100%.');
+        const btn = $('btn-plan'); btn.disabled = true; btn.innerText = 'Calculando ruta…';
+        out.classList.remove('hidden'); out.innerHTML = '<p class="text-sm text-slate-500 animate-pulse">Buscando la ruta…</p>';
+        try {
+            const [a, b] = await Promise.all([geocode(from + ', Ecuador'), geocode(to + ', Ecuador')]);
+            const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${a[1]},${a[0]};${b[1]},${b[0]}?overview=full&geometries=geojson`);
+            const route = (await res.json()).routes?.[0];
+            if (!route) throw new Error('No se encontró una ruta en carretera entre esos lugares.');
+            const dist = route.distance / 1000, hours = route.duration / 3600;
+            const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+
+            const f = (+$('p-speed').value) * (+$('p-terr').value) * ($('p-ac').checked ? 1.05 : 1);
+            const eff = range / f, need = dist / eff * 100, arrive = start - need;
+            let verdict;
+            if (arrive >= 20) verdict = `<p class="text-green-700 font-bold">✅ Llegas sin problema, con ~${Math.round(arrive)}% de batería.</p>`;
+            else if (arrive >= 0) verdict = `<p class="text-amber-600 font-bold">⚠️ Llegas justo (~${Math.round(arrive)}%). Baja la velocidad, apaga el clima o carga unos minutos en ruta.</p>`;
+            else verdict = `<p class="text-red-600 font-bold">❌ No llegas directo: te faltan ~${Math.round(-arrive)}% (≈${Math.round(-arrive / 100 * eff)} km). Planifica una carga.</p>`;
+
+            // Cargadores a menos de 3 km de la ruta, con su km aproximado en el trayecto
+            if (!allChargers) {
+                const { data } = await _supabase.from('chargers').select('id,title,city,charger_type,power,lat,lng,status,requires_app');
+                allChargers = (data || []).filter(c => c.lat && c.lng);
+            }
+            const step = Math.max(1, Math.floor(coords.length / 1500));
+            const sample = coords.filter((_, i) => i % step === 0);
+            const cum = [0]; for (let i = 1; i < sample.length; i++) cum.push(cum[i - 1] + kmBetween(sample[i - 1], sample[i]));
+            const scale = dist / (cum[cum.length - 1] || 1);
+            const conn = $('p-conn').value;
+            const onRoute = [];
+            for (const c of allChargers) {
+                if (c.status === 'NO DISPONIBLE' || !connOk(c, conn)) continue;
+                let best = Infinity, at = 0;
+                for (let i = 0; i < sample.length; i++) { const d = kmBetween([c.lat, c.lng], sample[i]); if (d < best) { best = d; at = i; } }
+                if (best <= 3) onRoute.push({ ...c, off: best, km: cum[at] * scale, fast: maxKw(c.power) >= 50 });
+            }
+            onRoute.sort((x, y) => x.km - y.km);
+
+            // Sugerencia de parada: último cargador antes de bajar a ~20%
+            let stopHTML = '';
+            if (arrive < 20) {
+                const kmLimit = Math.max(0, (start - 20) / 100 * eff);
+                const cands = onRoute.filter(c => c.km <= kmLimit && c.km > 15);
+                const stop = cands.filter(c => c.fast).pop() || cands.pop();
+                stopHTML = stop
+                    ? `<p class="text-sm">👉 Sugerencia: carga en <b>${escapeHtml(stop.title)}</b> (${escapeHtml(stop.city || '')}), km ${Math.round(stop.km)} del trayecto${stop.fast ? ' · ⚡ carga rápida' : ''}.</p>`
+                    : `<p class="text-sm">👉 Carga hasta ~80% antes del km ${Math.round(kmLimit)}. No hay cargadores compatibles registrados en ese tramo: revisa el mapa general.</p>`;
+            }
+
+            out.innerHTML = `<div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-50 rounded-xl p-2"><p class="lbl">Distancia</p><p class="text-lg font-bold">${Math.round(dist)} km</p></div>
+                    <div class="bg-slate-50 rounded-xl p-2"><p class="lbl">Tiempo</p><p class="text-lg font-bold">${Math.floor(hours)}h ${Math.round(hours % 1 * 60)}m</p></div>
+                    <div class="bg-slate-50 rounded-xl p-2"><p class="lbl">Batería al llegar</p><p class="text-lg font-bold ${arrive < 0 ? 'text-red-600' : arrive < 20 ? 'text-amber-600' : 'text-green-700'}">${Math.round(arrive)}%</p></div>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-1">${verdict}${stopHTML}<p class="text-[11px] text-slate-400">Autonomía efectiva estimada: ${Math.round(eff)} km (velocidad, terreno y clima).</p></div>`;
+
+            // Mapa con ruta y cargadores
+            $('route-map').classList.remove('hidden');
+            if (!routeMap) {
+                routeMap = L.map('route-map', { scrollWheelZoom: false });
+                L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(routeMap);
+            }
+            if (routeLayer) routeLayer.remove();
+            routeLayer = L.featureGroup().addTo(routeMap);
+            L.polyline(coords, { color: '#16a34a', weight: 5, opacity: 0.85 }).addTo(routeLayer);
+            L.marker(a, { title: from }).addTo(routeLayer).bindPopup('Origen: ' + escapeHtml(from));
+            L.marker(b, { title: to }).addTo(routeLayer).bindPopup('Destino: ' + escapeHtml(to));
+            onRoute.forEach(c => L.marker([c.lat, c.lng], { icon: L.divIcon({ className: '', html: `<div class="marker-dot" style="background:${c.fast ? '#2563eb' : '#16a34a'}"></div>`, iconSize: [14, 14] }) })
+                .addTo(routeLayer).bindPopup(`<b>${escapeHtml(c.title)}</b><p class="text-xs">${escapeHtml(c.power || '')} · ${escapeHtml(c.charger_type || '')}</p><p class="text-xs">Km ${Math.round(c.km)} del trayecto</p>`));
+            setTimeout(() => { routeMap.invalidateSize(); routeMap.fitBounds(routeLayer.getBounds().pad(0.05)); }, 50);
+
+            $('p-chargers').innerHTML = onRoute.length
+                ? `<p class="text-sm font-bold text-slate-700">⚡ ${onRoute.length} cargadores en la ruta${conn ? ' compatibles' : ''} (a menos de 3 km)</p>` + onRoute.map(c => `
+                    <div class="flex justify-between items-center gap-2 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-sm">
+                        <div class="min-w-0"><p class="font-semibold truncate">${c.fast ? '⚡ ' : ''}${escapeHtml(c.title)}</p><p class="text-[11px] text-slate-500 truncate">${escapeHtml(c.city || '')} · ${escapeHtml(c.power || '')} · ${escapeHtml(c.charger_type || '')}${c.requires_app ? ' · App ' + escapeHtml(c.requires_app) : ''}</p></div>
+                        <span class="text-xs font-bold text-slate-600 whitespace-nowrap">km ${Math.round(c.km)}</span>
+                    </div>`).join('')
+                : '<p class="text-sm text-slate-500">No hay cargadores registrados a menos de 3 km de esta ruta' + (conn ? ' con tu conector' : '') + '.</p>';
+        } catch (err) {
+            out.innerHTML = `<p class="text-sm text-red-600">⚠️ ${escapeHtml(err.message)}</p>`;
+        } finally { btn.disabled = false; btn.innerText = 'Planificar ruta'; }
+    }
+
+    // ================= CALCULADORA =================
+    const REDES = { conectz: { kwh: 0.17, act: 4, pmin: 0.10 }, ecored: { kwh: 0.2851, act: 0, pmin: 0 }, mevo: { kwh: 0.28, act: 0, pmin: 0 }, primax: { kwh: 0, act: 7, pmin: 0 }, casa: { kwh: 0.06, act: 0, pmin: 0 }, manual: {} };
+    function presetRed() {
+        const r = REDES[$('c-red').value] || {};
+        if (r.kwh != null) $('c-pkwh').value = r.kwh; if (r.act != null) $('c-act').value = r.act; if (r.pmin != null) $('c-pmin').value = r.pmin;
+        if ($('c-red').value === 'primax') { $('c-kwh').value = 15; $('c-min').value = 32; $('c-km').value = 90; }
+    }
+    function calcCost() {
+        const kwh = +$('c-kwh').value || 0, pkwh = +$('c-pkwh').value || 0, act = +$('c-act').value || 0, min = +$('c-min').value || 0, pmin = +$('c-pmin').value || 0, km = +$('c-km').value || 1;
+        const total = kwh * pkwh + act + min * pmin;
+        $('c-out').classList.remove('hidden');
+        $('c-out').innerHTML = `<p>Costo de la sesión: <b class="text-lg text-green-700">$${total.toFixed(2)}</b></p>
+            <p>Costo por 100 km: <b class="text-lg text-green-700">$${(total / km * 100).toFixed(2)}</b></p>
+            <p class="text-[11px] text-slate-500">Energía $${(kwh * pkwh).toFixed(2)} + activación $${act.toFixed(2)} + tiempo $${(min * pmin).toFixed(2)}</p>
+            ${act >= 4 && min > 0 ? '<p class="text-amber-700 text-xs mt-1">⚠️ Con activación alta evita cargas cortas: el costo fijo se reparte mejor en cargas largas.</p>' : ''}`;
+    }
+    presetRed();
+
+    // ================= CARGA PROGRAMADA =================
+    // [modelo, batería útil kWh, potencia máx. de carga AC del carro kW]
+    const BYD_AC = [
+        ['BYD Seagull 300', 30.08, 6.6], ['BYD Seagull 400', 38.88, 6.6], ['BYD Dolphin', 44.9, 7], ['BYD Yuan Pro', 45.1, 7],
+        ['BYD Yuan Plus', 60.48, 7], ['BYD Sealion 7', 82.56, 11], ['BYD Seal', 82.56, 11], ['BYD Han', 85.4, 7],
+        ['BYD Song Plus DM-i (híbrido)', 18.3, 6.6],
+    ];
+    $('s-model').innerHTML = BYD_AC.map((m, i) => `<option value="${i}">${m[0]} · ${m[1]} kWh · AC ${m[2]} kW</option>`).join('');
+    const hhmm = (mins) => { const m = ((Math.round(mins) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+    function calcSmart() {
+        const [name, cap, obc] = BYD_AC[$('s-model').value];
+        const from = Math.max(0, Math.min(100, +$('s-from').value || 0)), to = Math.max(0, Math.min(100, +$('s-to').value || 0));
+        const out = $('s-out');
+        if (to <= from) { out.innerHTML = '⚠️ El % objetivo debe ser mayor que el actual.'; return; }
+        const power = Math.min(obc, +$('s-source').value);
+        const kwhBattery = cap * (to - from) / 100;
+        const kwhGrid = kwhBattery / 0.9; // pérdidas de carga ~10%
+        // Por encima del 90% la carga se hace más lenta (~70% de la potencia)
+        const fast = Math.max(0, Math.min(to, 90) - from), slow = Math.max(0, to - Math.max(from, 90));
+        const hours = (cap * fast / 100 / 0.9) / power + (cap * slow / 100 / 0.9) / (power * 0.7);
+        const [h, m] = ($('s-start').value || '22:00').split(':').map(Number);
+        const end = h * 60 + m + hours * 60;
+        const nextDay = end >= 1440 ? ' (del día siguiente)' : '';
+        out.innerHTML = `<p>🔌 Potencia de carga: <b>${power} kW</b>${power < +$('s-source').value ? ` <span class="text-xs text-slate-500">(tu ${name} carga máximo a ${obc} kW en AC)</span>` : ''}</p>
+            <p>🔋 Energía a cargar: <b>${kwhBattery.toFixed(1)} kWh</b> <span class="text-xs text-slate-500">(${kwhGrid.toFixed(1)} kWh de la red)</span></p>
+            <p>⏱️ Duración aproximada: <b>${Math.floor(hours)} h ${Math.round(hours % 1 * 60)} min</b></p>
+            <p class="text-base mt-1">🕒 Configura el fin de carga a las <b class="text-green-700 text-xl">${hhmm(end)}</b>${nextDay}</p>
+            <p class="text-xs text-slate-500 mt-1">Costo aproximado: $${(kwhGrid * (+$('s-price').value || 0)).toFixed(2)}</p>`;
+    }
+    calcSmart();
+
+    // ================= APPS RECOMENDADAS =================
+    const play = (q) => `https://play.google.com/store/search?q=${encodeURIComponent(q)}&c=apps`;
+    const APPS_CARGA = [
+        { n: 'Conectz', d: 'Red de Kia pero multimarca; la más usada en carretera. Activas y pagas desde la app (activación + $/min + energía).', links: [['Google Play', play('Conectz')]] },
+        { n: 'Evinka', d: 'Activación por QR y saldo prepago.', extra: 'Soporte oficial: 098 830 6287', links: [['Google Play', play('Evinka')], ['WhatsApp soporte', 'https://wa.me/593988306287']] },
+        { n: 'Mevo (Enerlink EVX)', d: 'Disponible en Play Store, ~$0.28/kWh. Recomendada por la comunidad.', links: [['Google Play', play('Enerlink EVX')]] },
+        { n: 'Condor Charge / Condor Energy', d: 'Red de carga rápida (Mall del Pacífico Manta y más).', links: [['Google Play', 'https://play.google.com/store/apps/details?id=com.tridenstechnology.condorenergy'], ['App Store', 'https://apps.apple.com/ec/app/condor-energy/id6446024808']] },
+    ];
+    const APPS_AUTO = [
+        { n: 'BYD Auto (oficial)', d: 'Vinculación por QR en el concesionario, llave digital NFC y datos del carro (1.5 GB). Sin vincular en el concesionario, la app no funciona.', links: [['Google Play', play('BYD Auto')]] },
+    ];
+    const appCard = (a) => `<div class="border border-slate-200 rounded-xl p-3">
+        <p class="font-bold text-slate-800">${a.n}</p><p class="text-xs text-slate-600 mt-0.5">${a.d}</p>
+        ${a.extra ? `<p class="text-xs text-slate-500 mt-0.5">${a.extra}</p>` : ''}
+        <div class="flex flex-wrap gap-1.5 mt-2">${a.links.map(([t, u]) => `<a href="${u}" target="_blank" rel="noopener" class="text-[11px] font-bold bg-slate-900 text-white px-2.5 py-1 rounded-full hover:bg-black">${t}</a>`).join('')}</div></div>`;
+    $('apps-carga').innerHTML = APPS_CARGA.map(appCard).join('');
+    $('apps-auto').innerHTML = APPS_AUTO.map(appCard).join('');
+
+    // ================= DIRECTORIO =================
+    // Los números solo se muestran a usuarios registrados
+    const DIR = [
+        { n: 'Agendamiento BYD (citas/app/soporte)', c: 'Concesionario', t: '593991367638', d: 'Citas, vinculación app BYD Auto y soporte.' },
+        { n: 'Llantas 247 Quito', c: 'Llantas', t: '593992475060', d: 'Venta de llantas en Quito.' },
+        { n: 'Powercenter Llantas (Manta)', c: 'Llantas', t: '', d: 'Donde compran llantas los de la comunidad en Manta.' },
+        { n: 'Soporte EVINKA', c: 'Carga', t: '593988306287', d: 'Soporte oficial red Evinka.' },
+        { n: 'Condor Energy', c: 'Carga', t: '593984924820', d: 'Red de carga rápida.' },
+    ];
+    function renderDir() {
+        const sel = $('d-cat');
+        if (sel.options.length <= 1) [...new Set(DIR.map(d => d.c))].forEach(c => sel.add(new Option(c, c)));
+        const f = sel.value;
+        $('dir-list').innerHTML = DIR.filter(d => !f || d.c === f).map(d => `
+            <div class="border border-slate-200 rounded-xl p-3">
+                <div class="flex justify-between gap-2"><p class="font-semibold text-slate-800 text-sm">${escapeHtml(d.n)}</p><span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full h-fit">${d.c}</span></div>
+                <p class="text-xs text-slate-500">${escapeHtml(d.d)}</p>
+                ${!d.t ? '<p class="text-[11px] text-slate-400 mt-1">Sin número directo.</p>'
+                    : currentUser ? `<a href="https://wa.me/${d.t}?text=${encodeURIComponent('Hola, vengo de la comunidad EvCarga. Quisiera información.')}" target="_blank" rel="noopener" class="inline-block mt-1 text-xs font-bold text-green-700">💬 WhatsApp +${d.t}</a>`
+                    : `<button onclick="requireLogin('Ingresa para ver los contactos del directorio.')" class="mt-1 text-xs font-bold text-slate-500 hover:text-green-700">🔒 Ingresa para ver el contacto</button>`}
+            </div>`).join('');
+    }
+
+    // ================= AUTONOMÍAS Y VIAJES =================
+    // Oficial: BYD Ecuador (NEDC) y fichas técnicas. Real: comunidad o estimado* (oficial × costa 0.80 / sierra 0.72 / carretera 90–100 km/h 0.68)
+    const DB = [
+        ['Seagull 300', '305 km NEDC · 30.08 kWh', '~210–230*', '~235–255*', '~195–215*', 'Versión de batería pequeña. Llantas anchas restan 3–15%.'],
+        ['Seagull 400', '380 km NEDC (vendido como 400 km) · 38.88 kWh', '~240–260', '~260–280', '~240–280', 'Dato de la comunidad. 380 y 400 km son el mismo carro con distinta forma de medir.'],
+        ['Dolphin', '405 km NEDC · 44.9 kWh', '~285–305*', '~315–340*', '~265–290*', 'Estimado'],
+        ['Yuan Pro', '380 km NEDC · 45.1 kWh', '~265–285*', '~295–315*', '~250–270*', 'Estimado'],
+        ['Yuan Plus', '480 km NEDC · 60.48 kWh', '~335–360*', '~375–400*', '~315–340*', 'Estimado'],
+        ['Sealion 7', '456 km NEDC · 82.56 kWh', '~340–350 (Quito)', '~360–380*', '~300–330*', 'Sierra: dato de la comunidad'],
+        ['Song Plus DM-i', '~100 km eléctricos (ciudad) · 1.105 km combinada · 18.3 kWh', '~70–80 eléctricos*', '~85–95 eléctricos*', '~65–75 eléctricos*', 'Híbrido enchufable: después sigue con gasolina'],
+    ];
+    $('db-cards').innerHTML = DB.map(r => `<div class="border border-slate-200 rounded-xl p-3">
+        <p class="font-bold text-slate-800">${r[0]}</p><p class="text-[11px] text-slate-500">${r[1]}</p>
+        <div class="grid grid-cols-3 gap-1.5 mt-2 text-center">
+            <div class="bg-slate-50 rounded-lg p-1.5"><p class="lbl">Sierra</p><p class="text-xs font-semibold">${r[2]}</p></div>
+            <div class="bg-slate-50 rounded-lg p-1.5"><p class="lbl">Costa</p><p class="text-xs font-semibold">${r[3]}</p></div>
+            <div class="bg-slate-50 rounded-lg p-1.5"><p class="lbl">Carretera</p><p class="text-xs font-semibold">${r[4]}</p></div>
+        </div><p class="text-[11px] text-slate-500 mt-1.5">${r[5]}</p></div>`).join('');
+    $('db-table').innerHTML = DB.map(r => `<tr class="border-b border-slate-50 align-top">${r.map((c, i) => `<td class="p-2 ${i === 0 ? 'font-semibold text-slate-800 whitespace-nowrap' : i === 5 ? 'text-xs text-slate-500 min-w-[180px]' : i === 1 ? 'text-xs min-w-[140px]' : 'whitespace-nowrap'}">${c}</td>`).join('')}</tr>`).join('');
+    const SEED_TRIPS = [{ ruta: 'Machala → Cuenca', vel: '—', batt: '100% cargado', costo: 20, tiempo: '48 min al 100%', com: 'Carga rápida, $20.' }];
+
+    async function loadCommunity() {
+        const { data } = await _supabase.from('community_posts').select('id,kind,data,user_id,created_at').order('created_at', { ascending: false }).limit(100);
+        const posts = data || [];
+        const del = (p) => currentUser && (p.user_id === currentUser.id || currentProfile?.role === 'admin') ? `<button onclick="deletePost(${p.id})" class="text-[10px] text-red-500 ml-2">Eliminar</button>` : '';
+        const autos = posts.filter(p => p.kind === 'autonomia');
+        $('db-user').innerHTML = autos.length ? `<div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-left text-xs uppercase text-slate-400 border-b"><tr><th class="p-2">Modelo</th><th class="p-2">Zona</th><th class="p-2">Km reales</th><th class="p-2">Nota</th></tr></thead><tbody>${autos.map(p => `<tr class="border-b border-slate-50"><td class="p-2">${escapeHtml(p.data.m)}</td><td class="p-2">${escapeHtml(p.data.z)}</td><td class="p-2">${escapeHtml(p.data.km)}</td><td class="p-2 text-xs">${escapeHtml(p.data.n || '')}${del(p)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="text-sm text-slate-400">Aún no hay aportes. ¡Sé el primero!</p>';
+        const trips = posts.filter(p => p.kind === 'viaje').map(p => ({ ...p.data, _p: p })).concat(SEED_TRIPS);
+        $('trip-list').innerHTML = trips.map(t => `<div class="border border-slate-200 rounded-xl p-3 text-sm">
+            <p class="font-semibold text-slate-800">${escapeHtml(t.ruta)} ${t._p ? del(t._p) : ''}</p>
+            <div class="flex flex-wrap gap-1 mt-1 text-[11px]">
+                <span class="bg-slate-100 px-2 py-0.5 rounded-full">🔋 ${escapeHtml(t.batt)}</span><span class="bg-slate-100 px-2 py-0.5 rounded-full">💰 $${escapeHtml(t.costo)}</span>
+                <span class="bg-slate-100 px-2 py-0.5 rounded-full">🚗 ${escapeHtml(t.vel)} km/h</span><span class="bg-slate-100 px-2 py-0.5 rounded-full">⏱️ ${escapeHtml(t.tiempo)}</span>
+            </div>${t.com ? `<p class="text-xs text-slate-500 mt-1">${escapeHtml(t.com)}</p>` : ''}</div>`).join('');
+    }
+
+    async function addPost(kind, data) {
+        if (!currentUser) { requireLogin('Ingresa para aportar a la comunidad.'); return false; }
+        const { error } = await _supabase.from('community_posts').insert([{ kind, data }]);
+        if (error) { alert(error.message); return false; }
+        loadCommunity(); return true;
+    }
+    async function addAutonomia() {
+        const m = $('d-model').value.trim(), km = +$('d-km').value;
+        if (!m || !km) return alert('Completa modelo y km');
+        if (await addPost('autonomia', { m, z: $('d-zone').value, km, n: $('d-note').value.trim() })) { ['d-model', 'd-km', 'd-note'].forEach(i => $(i).value = ''); alert('¡Gracias por tu aporte!'); }
+    }
+    async function addTrip() {
+        const ruta = $('t-ruta').value.trim();
+        if (!ruta) return alert('Escribe la ruta');
+        const d = { ruta, vel: $('t-vel').value || '—', batt: ($('t-batt').value ? $('t-batt').value + '%' : '—'), costo: $('t-costo').value || '—', tiempo: $('t-tiempo').value.trim() || '—', com: $('t-com').value.trim() };
+        if (await addPost('viaje', d)) { ['t-ruta', 't-vel', 't-batt', 't-costo', 't-tiempo', 't-com'].forEach(i => $(i).value = ''); alert('¡Reporte publicado!'); }
+    }
+    async function deletePost(id) {
+        if (!confirm('¿Eliminar este aporte?')) return;
+        await _supabase.from('community_posts').delete().eq('id', id);
+        loadCommunity();
+    }
+
+    // ================= INICIO =================
+    loadFaq();
+    initSession();
+</script>
+</body>
+</html>

@@ -7,6 +7,7 @@ export async function GET() {
   const urls = [
     { loc: `${base}/`, freq: 'daily', pri: '1.0' },
     { loc: `${base}/cargadores.html`, freq: 'daily', pri: '0.8' },
+    { loc: `${base}/entorno.html`, freq: 'daily', pri: '0.8' },
     ...(await getCities()).map((c) => ({ loc: `${base}/cargadores/${c.slug}.html`, freq: 'weekly', pri: '0.7' })),
     { loc: `${base}/privacidad.html`, freq: 'yearly', pri: '0.3' },
   ];

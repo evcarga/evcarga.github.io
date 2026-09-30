@@ -1,5 +1,6 @@
 ---
 import { getCities } from '../lib/chargers.js';
+import { PLACES } from '../lib/ecuador-places.js';
 const cities = (await getCities()).slice(0, 18);
 ---
 <!DOCTYPE html>
@@ -102,6 +103,7 @@ const cities = (await getCities()).slice(0, 18);
         /* Modales */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); z-index: 50; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
         .modal.active { display: flex; animation: fadeIn 0.2s ease-out; }
+        .modal > * { min-width: 0; }
         
         /* Animaciones */
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
@@ -147,6 +149,7 @@ const cities = (await getCities()).slice(0, 18);
             box-shadow: inset 0 0 4px rgba(0,0,0,0.2);
         }
         .marker-pin.fast { background: #2563eb; }
+        .marker-pin.down { background: #94a3b8; }
         .marker-pin.occupied {
             background: #dc2626; /* Red */
         }
@@ -232,7 +235,10 @@ const cities = (await getCities()).slice(0, 18);
                 <button onclick="openMainMap()" class="bg-white text-slate-900 px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-slate-50 transition flex items-center gap-2 w-full sm:w-auto justify-center ring-1 ring-slate-200">
                     🗺️ Abrir Mapa
                 </button>
-                <button id="btn-offer-hero" onclick="openModal('modal-offer')" class="hidden bg-yellow-400 text-yellow-900 px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-yellow-300 transition flex items-center gap-2 w-full sm:w-auto justify-center border border-yellow-500/30">
+                <a href="/entorno.html" class="bg-green-500 text-slate-900 px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-green-400 transition flex items-center gap-2 w-full sm:w-auto justify-center">
+                    🧰 Comunidad EV
+                </a>
+                <button id="btn-offer-hero" onclick="startOffer()" class="flex bg-yellow-400 text-yellow-900 px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-yellow-300 transition flex items-center gap-2 w-full sm:w-auto justify-center border border-yellow-500/30">
                     ⚡ Ofrecer Cargador
                 </button>
             </div>
@@ -333,6 +339,7 @@ const cities = (await getCities()).slice(0, 18);
                     <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-600"></span>Disponible</span>
                     <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>Carga rápida (50+ kW)</span>
                     <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-red-600"></span>Ocupado</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>No sirve</span>
                 </div>
             </div>
             <button onclick="closeModal('modal-main-map')" class="absolute top-2 right-2 sm:top-4 sm:right-4 z-[400] bg-white text-slate-500 hover:text-red-500 font-bold p-2 rounded-full shadow-md transition w-10 h-10 flex items-center justify-center" aria-label="Cerrar mapa">✕</button>
@@ -343,9 +350,10 @@ const cities = (await getCities()).slice(0, 18);
     <div id="modal-register" class="modal">
         <div class="bg-white p-5 sm:p-7 rounded-2xl w-full max-w-sm mx-3 shadow-2xl border-t-4 border-green-500 max-h-[94vh] overflow-y-auto">
             <h2 class="text-xl font-bold mb-3 text-slate-800">Crear Cuenta</h2>
+            <p id="register-note" class="hidden text-xs bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg px-3 py-2 mb-3"></p>
             <form id="form-register" class="space-y-2.5">
                 <input type="text" id="reg-name" placeholder="Primer Nombre" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 text-base rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
-                <input type="tel" id="reg-phone" placeholder="Número Celular" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 text-base rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
+                <input type="tel" id="reg-phone" placeholder="Número celular (opcional)" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 text-base rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
                 <input type="email" id="reg-email" placeholder="Correo Electrónico" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 text-base rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required>
                 <div class="grid grid-cols-2 gap-2">
                     <input type="password" id="reg-pin" placeholder="PIN (4 dígitos)" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 text-base rounded-lg focus:ring-2 focus:ring-green-500 outline-none text-center tracking-[0.4em] placeholder:tracking-normal placeholder:text-sm" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
@@ -393,30 +401,35 @@ const cities = (await getCities()).slice(0, 18);
     </div>
 
     <div id="modal-offer" class="modal">
-        <div class="bg-white p-6 rounded-2xl w-full max-w-lg mx-3 shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll relative">
-            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-3">
-                <h2 class="text-2xl font-bold text-slate-800">Ofrecer Cargador</h2>
+        <div class="bg-white p-4 sm:p-5 rounded-2xl w-full max-w-md mx-3 shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll relative">
+            <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
+                <h2 class="text-xl font-bold text-slate-800">Ofrecer Cargador</h2>
                 <button type="button" onclick="closeModal('modal-offer')" class="text-slate-400 hover:text-red-500 font-bold text-xl w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center transition" aria-label="Cerrar">✕</button>
             </div>
-            <form id="form-offer" class="space-y-4">
+            <form id="form-offer" class="space-y-2.5">
+                <div id="offer-phone-wrap" class="hidden bg-yellow-50 border border-yellow-200 rounded-lg p-2.5">
+                    <label class="block text-xs font-bold text-yellow-800 uppercase mb-0.5">Tu celular de contacto</label>
+                    <input type="tel" id="offer-phone" placeholder="Ej: 0991234567" maxlength="20" class="w-full border border-yellow-200 bg-white px-3 py-2 text-sm rounded-lg">
+                    <p class="text-[10px] text-yellow-700 mt-1">Se mostrará a usuarios registrados que necesiten cargar.</p>
+                </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Título del anuncio</label>
-                    <input type="text" id="offer-title" placeholder="Ej: Cargador Rápido Centro" class="w-full border border-slate-200 bg-slate-50 p-3 rounded-lg focus:border-green-500 outline-none transition" required maxlength="120">
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-0.5">Título del anuncio</label>
+                    <input type="text" id="offer-title" placeholder="Ej: Cargador Rápido Centro" class="w-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm rounded-lg focus:border-green-500 outline-none transition" required maxlength="120">
                 </div>
                 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-2.5">
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Ciudad</label>
-                        <input type="text" id="offer-city" class="w-full border border-slate-200 bg-slate-50 p-3 rounded-lg" required maxlength="80">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-0.5">Ciudad</label>
+                        <input type="text" id="offer-city" list="ec-places" autocomplete="off" placeholder="Escribe y elige" class="w-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm rounded-lg" required maxlength="80">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Dirección</label>
-                        <input type="text" id="offer-address" class="w-full border border-slate-200 bg-slate-50 p-3 rounded-lg" required maxlength="160">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-0.5">Dirección</label>
+                        <input type="text" id="offer-address" class="w-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm rounded-lg" required maxlength="160">
                     </div>
                 </div>
 
-                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                    <label class="block text-sm font-bold text-blue-800 mb-3 flex items-center gap-2">
+                <div class="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                    <label class="block text-sm font-bold text-blue-800 mb-2 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                         Ubicación Exacta
                     </label>
@@ -429,48 +442,52 @@ const cities = (await getCities()).slice(0, 18);
                     <div id="offer-preview-map"></div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-2.5">
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Tipo Conector</label>
-                        <select id="offer-type" class="w-full border border-slate-200 p-3 rounded-lg bg-white"><option>Tipo 1</option><option>Tipo 2</option><option>Toma 220v</option><option>Toma 110v</option><option>GBT</option></select>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-0.5">Tipo Conector</label>
+                        <select id="offer-type" class="w-full border border-slate-200 px-3 py-2 text-sm rounded-lg bg-white"><option>Tipo 1</option><option>Tipo 2</option><option>Toma 220v</option><option>Toma 110v</option><option>GBT</option></select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Potencia</label>
-                        <select id="offer-power" class="w-full border border-slate-200 p-3 rounded-lg bg-white"><option>3.7 KW</option><option>7 KW</option><option>15 KW</option><option>50 KW</option><option>60 KW</option><option>90 KW</option></select>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-0.5">Potencia</label>
+                        <select id="offer-power" class="w-full border border-slate-200 px-3 py-2 text-sm rounded-lg bg-white"><option>3.7 KW</option><option>7 KW</option><option>15 KW</option><option>50 KW</option><option>60 KW</option><option>90 KW</option></select>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-2.5">
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Precio / KWH (opcional)</label>
-                        <input type="number" step="0.01" min="0" id="offer-price-kwh" placeholder="Dejar vacío si es gratis" class="w-full border border-slate-200 bg-slate-50 p-3 rounded-lg">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-0.5">Precio / KWH (opcional)</label>
+                        <input type="number" step="0.01" min="0" id="offer-price-kwh" placeholder="Dejar vacío si es gratis" class="w-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm rounded-lg">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Precio / Hora Parqueo (opcional)</label>
-                        <input type="number" step="0.01" min="0" id="offer-price-parking" placeholder="Dejar vacío si es gratis" class="w-full border border-slate-200 bg-slate-50 p-3 rounded-lg">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-0.5">Precio / Hora Parqueo (opcional)</label>
+                        <input type="number" step="0.01" min="0" id="offer-price-parking" placeholder="Dejar vacío si es gratis" class="w-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm rounded-lg">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Tipo Parqueadero</label>
-                    <select id="offer-parking-type" class="w-full border border-slate-200 p-3 rounded-lg bg-white"><option>Cubierto</option><option>Cubierto (Reja)</option><option>Intemperie</option><option>Intemperie (Reja)</option></select>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-0.5">Tipo Parqueadero</label>
+                    <select id="offer-parking-type" class="w-full border border-slate-200 px-3 py-2 text-sm rounded-lg bg-white"><option>Cubierto</option><option>Cubierto (Reja)</option><option>Intemperie</option><option>Intemperie (Reja)</option></select>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Horario Disponible</label>
-                    <input type="text" id="offer-schedule" placeholder="Ej: Lun-Vie 8am-6pm" class="w-full border border-slate-200 bg-slate-50 p-3 rounded-lg" required maxlength="120">
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-0.5">Horario Disponible</label>
+                    <input type="text" id="offer-schedule" placeholder="Ej: Lun-Vie 8am-6pm" class="w-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm rounded-lg" required maxlength="120">
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Link de Google Maps (opcional)</label>
-                    <input type="url" id="offer-link" placeholder="https://maps.app.goo.gl/..." class="w-full border border-slate-200 bg-slate-50 p-3 rounded-lg">
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-0.5">Link de Google Maps (opcional)</label>
+                    <input type="url" id="offer-link" placeholder="https://maps.app.goo.gl/..." class="w-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm rounded-lg">
                 </div>
 
-                <button type="submit" id="btn-offer-submit" class="w-full bg-yellow-400 text-yellow-900 py-3 rounded-lg font-bold hover:bg-yellow-300 transition shadow-lg mt-2">PUBLICAR CARGADOR</button>
+                <button type="submit" id="btn-offer-submit" class="w-full bg-yellow-400 text-yellow-900 py-2.5 rounded-lg font-bold hover:bg-yellow-300 transition shadow-lg mt-1">PUBLICAR CARGADOR</button>
             </form>
-            <button onclick="closeModal('modal-offer')" class="mt-4 text-sm text-slate-400 w-full text-center hover:text-slate-600">Cancelar</button>
+            <button onclick="closeModal('modal-offer')" class="mt-2 text-sm text-slate-400 w-full text-center hover:text-slate-600">Cancelar</button>
         </div>
     </div>
+
+    <datalist id="ec-places">
+        {PLACES.map((p) => <option value={p.name}>{p.province}</option>)}
+    </datalist>
 
     <div id="modal-picker" class="modal">
         <div class="bg-white p-6 rounded-2xl w-11/12 md:w-2/3 shadow-2xl border border-slate-100">
@@ -502,8 +519,8 @@ const cities = (await getCities()).slice(0, 18);
                 <input type="email" id="cp-email" class="w-full bg-slate-100 border border-slate-200 px-3 py-2 text-base rounded-lg text-slate-500" readonly>
             </div>
             <div>
-                <label class="block text-[11px] font-bold text-slate-400 uppercase mb-0.5">Número celular</label>
-                <input type="tel" id="cp-phone" placeholder="Ej: 0991234567" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 text-base rounded-lg focus:ring-2 focus:ring-green-500 outline-none" required maxlength="20" inputmode="tel">
+                <label class="block text-[11px] font-bold text-slate-400 uppercase mb-0.5">Número celular (opcional)</label>
+                <input type="tel" id="cp-phone" placeholder="Opcional · Ej: 0991234567" class="w-full bg-slate-50 border border-slate-200 px-3 py-2 text-base rounded-lg focus:ring-2 focus:ring-green-500 outline-none" maxlength="20" inputmode="tel">
             </div>
             <div class="bg-green-50 border border-green-100 rounded-lg px-3 py-2 text-xs text-slate-600">
                 <p class="font-semibold text-slate-700 mb-1">Recibir novedades (opcional) por:</p>
@@ -521,6 +538,31 @@ const cities = (await getCities()).slice(0, 18);
         </form>
     </div>
 
+    <!-- Reportar novedad de un cargador -->
+    <div id="modal-report" class="modal" onclick="if(event.target===this) closeModal('modal-report')">
+        <form id="form-report" class="bg-white p-5 rounded-2xl w-full max-w-sm mx-3 shadow-2xl border-t-4 border-amber-500 space-y-2.5">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">⚠️ Reportar novedad</h2>
+                    <p id="report-charger-name" class="text-xs text-slate-500"></p>
+                </div>
+                <button type="button" onclick="closeModal('modal-report')" class="text-slate-400 hover:text-red-500 font-bold text-lg" aria-label="Cerrar">✕</button>
+            </div>
+            <input type="hidden" id="report-charger-id">
+            <select id="report-kind" class="w-full border border-slate-200 bg-slate-50 px-3 py-2 rounded-lg text-base sm:text-sm" required>
+                <option value="no_funciona">No funciona / está dañado</option>
+                <option value="info_incorrecta">La información o ubicación está mal</option>
+                <option value="precio">Cambió el precio</option>
+                <option value="horario">Cambió el horario</option>
+                <option value="ya_no_existe">Ya no existe</option>
+                <option value="otro">Otro</option>
+            </select>
+            <textarea id="report-message" rows="3" maxlength="1000" placeholder="Cuéntanos qué pasó (opcional)" class="w-full border border-slate-200 bg-slate-50 px-3 py-2 rounded-lg text-base sm:text-sm"></textarea>
+            <button type="submit" id="btn-report-submit" class="w-full bg-amber-500 text-white py-2.5 rounded-lg font-bold hover:bg-amber-600 transition">Enviar reporte</button>
+            <p class="text-[10px] text-slate-400 text-center">El reporte llega al administrador para revisarlo.</p>
+        </form>
+    </div>
+
     <div id="modal-consent" class="modal" onclick="if(event.target===this) closeModal('modal-consent')">
         <div class="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl border-t-4 border-green-500 m-4">
             <h2 class="text-xl font-bold text-slate-800 mb-2">🔔 Avisos de EvCar</h2>
@@ -532,7 +574,6 @@ const cities = (await getCities()).slice(0, 18);
             </div>
             <p class="text-[11px] text-slate-400 mb-4">Puedes retirar el permiso cuando quieras. Ver <a href="privacidad.html" target="_blank" class="underline">Política de Privacidad</a>.</p>
             <button onclick="saveConsent()" id="btn-consent-save" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 transition shadow">Guardar preferencias</button>
-            <button onclick="saveConsent(true)" class="mt-2 w-full text-sm text-slate-400 hover:text-slate-600">Ahora no</button>
         </div>
     </div>
 
@@ -605,7 +646,7 @@ const cities = (await getCities()).slice(0, 18);
 
     <a href="https://wa.me/593980407829?text=Hola,%20quiero%20hacer%20una%20pregunta" 
        target="_blank" 
-       class="float-btn fixed bottom-5 right-5 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-full shadow-xl flex items-center gap-3 border-2 border-white transition hover:scale-110 no-underline">
+       class="float-btn fixed bottom-5 right-5 z-[45] bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-full shadow-xl flex items-center gap-3 border-2 border-white transition hover:scale-110 no-underline">
        <div class="flex flex-col leading-none text-left">
            <span class="text-[10px] font-light opacity-90 uppercase tracking-wide">Soporte</span>
        </div>
@@ -720,7 +761,7 @@ const cities = (await getCities()).slice(0, 18);
     function createModernIcon(status, fast = false) {
         return L.divIcon({
             className: 'custom-div-icon',
-            html: `<div class="marker-pin ${status === 'OCUPADO' ? 'occupied' : (fast ? 'fast' : '')}"></div>`,
+            html: `<div class="marker-pin ${status === 'NO DISPONIBLE' ? 'down' : status === 'OCUPADO' ? 'occupied' : (fast ? 'fast' : '')}"></div>`,
             iconSize: [34, 42],
             iconAnchor: [17, 42],
             popupAnchor: [0, -40],
@@ -811,11 +852,12 @@ const cities = (await getCities()).slice(0, 18);
         if(!c.lat || !c.lng) return;
         
         const fast = isFastCharger(c);
-        const m = L.marker([c.lat, c.lng], { icon: createModernIcon(c.status, fast), zIndexOffset: fast ? 500 : 0 }).addTo(mainMap);
+        const isDown = c.status === 'NO DISPONIBLE';
+        const m = L.marker([c.lat, c.lng], { icon: createModernIcon(c.status, fast), zIndexOffset: isDown ? -500 : (fast ? 500 : 0) }).addTo(mainMap);
         
         const isOccupied = c.status === 'OCUPADO';
-        const statusColor = isOccupied ? 'text-red-600' : 'text-green-600';
-        const statusText = isOccupied ? 'OCUPADO' : 'DISPONIBLE';
+        const statusColor = (isOccupied || isDown) ? 'text-red-600' : 'text-green-600';
+        const statusText = isDown ? '⛔ NO SIRVE POR EL MOMENTO' : isOccupied ? 'OCUPADO' : 'DISPONIBLE';
 
         const mapsUrl = c.link ? c.link : `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}`;
 
@@ -835,7 +877,7 @@ const cities = (await getCities()).slice(0, 18);
         m.bindPopup(`
             <div class="text-center" style="width: 190px;">
                 <h3 class="font-bold text-slate-800 text-sm leading-tight">${escapeHtml(c.title)}</h3>
-                <p class="text-[10px] font-bold ${statusColor} uppercase tracking-wide mt-0.5">${statusText}${fast ? ' · <span class="text-blue-600">⚡ Carga rápida</span>' : ''}</p>
+                <p class="text-[10px] font-bold ${statusColor} uppercase tracking-wide mt-0.5">${statusText}${fast && !isDown ? ' · <span class="text-blue-600">⚡ Carga rápida</span>' : ''}</p>
                 <div class="text-left text-[11px] bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200 text-slate-600 mt-1.5 space-y-0.5">
                     <p>⚡ ${escapeHtml(c.power)} · ${escapeHtml(c.charger_type)}</p>
                     <p>💰 ${formatPrice(c.price_kwh, '/kWh')}${c.price_parking ? ` · 🅿️ ${formatPrice(c.price_parking, '/h')}` : ''}</p>
@@ -843,6 +885,7 @@ const cities = (await getCities()).slice(0, 18);
                 </div>
                 <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" class="mt-1.5 w-full block bg-blue-600 hover:bg-blue-700 !text-white font-semibold text-[11px] py-1.5 rounded-lg">📍 Cómo llegar</a>
                 ${contactHTML}
+                <button onclick="openReport(${c.id})" class="mt-1.5 w-full text-[10px] text-amber-700 hover:underline">⚠️ Reportar novedad</button>
             </div>
         `, { autoPanPaddingTopLeft: [10, 110], autoPanPaddingBottomRight: [10, 20] });
     }
@@ -986,18 +1029,15 @@ const cities = (await getCities()).slice(0, 18);
                 <button onclick="openModal('modal-my-chargers');loadMyChargers()" class="text-slate-500 hover:text-green-600 font-medium transition mr-2 text-xs sm:text-sm">Mis Cargadores</button>
                 <button onclick="logout()" class="bg-slate-100 text-slate-700 px-4 py-2 rounded-lg text-xs sm:text-sm hover:bg-slate-200 font-bold transition">Salir</button>
             `;
-            btnHero.classList.remove('hidden');
-            btnHero.classList.add('flex');
             // Google no entrega celular ni aceptación: se piden antes de continuar
-            if (data && (!data.phone || !data.terms_accepted_at)) openCompleteProfile(data);
+            if (data && !data.terms_accepted_at) openCompleteProfile(data);
         } else {
             nameDisplay.classList.add('hidden');
             nav.innerHTML = `
                 <button onclick="openModal('modal-login')" class="text-slate-500 hover:text-slate-800 font-medium mr-2 text-xs sm:text-sm">Ingresar</button>
                 <button onclick="openModal('modal-register')" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-700 transition shadow-md text-xs sm:text-sm">Registro</button>
             `;
-            btnHero.classList.add('hidden');
-            btnHero.classList.remove('flex');
+
         }
         loadChargers();
     }
@@ -1010,7 +1050,7 @@ const cities = (await getCities()).slice(0, 18);
         if(error) { console.error(error); return; }
         chargersData = data || [];
         fillMapSearchOptions();
-        document.getElementById('count-chargers').innerText = `${chargersData.length} activos`;
+        document.getElementById('count-chargers').innerText = `${chargersData.filter(c => c.status !== 'NO DISPONIBLE').length} activos`;
         applyFilter(); // respeta el filtro de ciudad (p. ej. al venir de /cargadores/<ciudad>.html)
         
         if(mainMap) {
@@ -1041,12 +1081,15 @@ const cities = (await getCities()).slice(0, 18);
 
         visibleItems.forEach(c => {
             const isOccupied = c.status === 'OCUPADO';
-            let statusHTML = isOccupied 
+            const isDown = c.status === 'NO DISPONIBLE';
+            let statusHTML = isDown
+                ? `<span class="inline-flex items-center bg-red-50 text-red-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-red-100 tracking-wide text-center">NO SIRVE POR EL MOMENTO</span>`
+                : isOccupied 
                 ? `<span class="inline-flex items-center bg-red-50 text-red-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-red-100 tracking-wide">OCUPADO</span>`
                 : `<span class="inline-flex items-center bg-green-50 text-green-600 text-[10px] font-extrabold px-2 py-1 rounded-full border border-green-100 tracking-wide">DISPONIBLE</span>`;
 
             const card = document.createElement('div');
-            card.className = 'bg-white rounded-xl shadow-sm border border-green-500 overflow-hidden card-hover transition duration-300 cursor-pointer flex flex-col h-full group hover:border-green-500';
+            card.className = (isDown ? 'opacity-75 grayscale-[40%] ' : '') + 'bg-white rounded-xl shadow-sm border border-green-500 overflow-hidden card-hover transition duration-300 cursor-pointer flex flex-col h-full group hover:border-green-500';
             card.onclick = (e) => {
                 if(e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
                 openDetailModal(c.id);
@@ -1074,8 +1117,9 @@ const cities = (await getCities()).slice(0, 18);
                         </div>
                     </div>
                 </div>
-                <div class="bg-slate-50 p-3 border-t border-slate-100 flex justify-center">
-                    <span class="text-xs font-bold text-slate-400 group-hover:text-green-600 transition">Ver detalles completos →</span>
+                <div class="bg-slate-50 px-3 py-2 border-t border-slate-100 flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-400 group-hover:text-green-600 transition">Ver detalles →</span>
+                    <button onclick="event.stopPropagation(); openReport(${c.id})" class="text-[11px] font-semibold text-amber-700 hover:underline">⚠️ Reportar novedad</button>
                 </div>
             `;
             container.appendChild(card);
@@ -1103,7 +1147,10 @@ const cities = (await getCities()).slice(0, 18);
         document.getElementById('detail-schedule').innerText = c.schedule || 'No especificado';
 
         const banner = document.getElementById('detail-status-banner');
-        if(c.status === 'OCUPADO') {
+        if(c.status === 'NO DISPONIBLE') {
+            banner.className = "bg-red-50 text-red-700 p-3 rounded-lg font-bold text-center border border-red-200 text-xs";
+            banner.innerText = "⛔ NO SIRVE POR EL MOMENTO";
+        } else if(c.status === 'OCUPADO') {
             const until = c.occupied_until ? new Date(c.occupied_until).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'hora no definida';
             banner.className = "bg-red-50 text-red-700 p-3 rounded-lg font-bold text-center border border-red-100 text-xs";
             banner.innerText = `⛔ OCUPADO HASTA: ${until}`;
@@ -1123,6 +1170,7 @@ const cities = (await getCities()).slice(0, 18);
         const mapsUrl = c.link ? c.link : (c.lat && c.lng ? `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}` : null);
         
         actions.innerHTML = `
+            <button onclick="closeModal('modal-detail'); openReport(${c.id})" class="w-full text-xs text-amber-700 font-semibold hover:underline mb-2">⚠️ Reportar novedad de este cargador</button>
             ${mapsUrl ? `<a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" class="w-full bg-white text-blue-600 border border-blue-200 py-3 rounded-lg font-bold hover:bg-blue-50 text-center block transition mb-2 shadow-sm flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Navegar con Google Maps</a>` : ''}
             ${contactBtn}
         `;
@@ -1173,6 +1221,14 @@ const cities = (await getCities()).slice(0, 18);
                         </div>
                     </div>
                 `;
+            } else if(c.status === 'NO DISPONIBLE') {
+                item.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-bold text-slate-800">${escapeHtml(c.title)}</h4>
+                        <span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-1 rounded-full">NO DISPONIBLE</span>
+                    </div>
+                    <p class="text-xs text-slate-500">El administrador lo marcó como fuera de servicio. Si ya funciona, escríbenos por Soporte.</p>
+                `;
             } else {
                 const occupiedDate = c.occupied_until ? new Date(c.occupied_until).toLocaleString([], {dateStyle: 'short', timeStyle: 'short'}) : 'Sin definir';
                 item.innerHTML = `
@@ -1205,10 +1261,63 @@ const cities = (await getCities()).slice(0, 18);
         else { loadMyChargers(); loadChargers(); }
     }
 
+    // ================= OFRECER CARGADOR =================
+    function startOffer() {
+        if (!currentUser) {
+            const note = document.getElementById('register-note');
+            note.innerText = 'Para ofrecer un cargador necesitas una cuenta. Regístrate gratis o ingresa.';
+            note.classList.remove('hidden');
+            openModal('modal-register');
+            return;
+        }
+        document.getElementById('offer-phone-wrap').classList.toggle('hidden', !!currentProfile?.phone);
+        openModal('modal-offer');
+    }
+
+    // Provincia a partir de la lista de lugares (si la persona eligió uno)
+    function provinceForCity(city) {
+        const opt = [...document.querySelectorAll('#ec-places option')].find(o => normalize(o.value) === normalize(city));
+        return opt ? opt.textContent : null;
+    }
+
+    // ================= REPORTAR NOVEDAD =================
+    function openReport(id) {
+        const c = chargersData.find(x => x.id === id);
+        document.getElementById('report-charger-id').value = id;
+        document.getElementById('report-charger-name').innerText = c ? `${c.title} · ${c.city || ''}` : '';
+        document.getElementById('form-report').reset();
+        if (mainMap) mainMap.closePopup();
+        openModal('modal-report');
+    }
+
+    document.getElementById('form-report').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btn-report-submit');
+        btn.disabled = true; btn.innerText = 'Enviando...';
+        const { error } = await _supabase.from('charger_reports').insert([{
+            charger_id: parseInt(document.getElementById('report-charger-id').value),
+            kind: document.getElementById('report-kind').value,
+            message: document.getElementById('report-message').value.trim() || null
+        }]);
+        btn.disabled = false; btn.innerText = 'Enviar reporte';
+        if (error) return alert('No se pudo enviar: ' + error.message);
+        closeModal('modal-report');
+        alert('¡Gracias! Tu reporte fue enviado al administrador.');
+    });
+
     // ================= PUBLICAR =================
     async function postCharger(e) {
         e.preventDefault();
-        if(!currentUser) return alert("Inicia sesión");
+        if(!currentUser) return startOffer();
+
+        // Quien ofrece un cargador debe dejar un celular de contacto
+        if (!currentProfile?.phone) {
+            const phone = document.getElementById('offer-phone').value.trim();
+            if (!/^\+?\d{9,15}$/.test(phone.replace(/[\s-]/g, ''))) return alert('Escribe tu número celular de contacto');
+            const { error: pErr } = await _supabase.from('profiles').update({ phone }).eq('id', currentUser.id);
+            if (pErr) return alert(pErr.message);
+            currentProfile = { ...currentProfile, phone };
+        }
         
         const lat = document.getElementById('offer-lat').value;
         const lng = document.getElementById('offer-lng').value;
@@ -1224,6 +1333,7 @@ const cities = (await getCities()).slice(0, 18);
             user_id: currentUser.id,
             title: document.getElementById('offer-title').value.trim(),
             city: document.getElementById('offer-city').value.trim(),
+            provincia: provinceForCity(document.getElementById('offer-city').value.trim()),
             address: document.getElementById('offer-address').value.trim(),
             charger_type: document.getElementById('offer-type').value,
             power: document.getElementById('offer-power').value,
@@ -1368,11 +1478,11 @@ const cities = (await getCities()).slice(0, 18);
     document.getElementById('form-complete').addEventListener('submit', async (e) => {
         e.preventDefault();
         const phone = document.getElementById('cp-phone').value.trim();
-        if (!/^\+?\d{9,15}$/.test(phone.replace(/[\s-]/g, ''))) return alert('Escribe un número celular válido');
+        if (phone && !/^\+?\d{9,15}$/.test(phone.replace(/[\s-]/g, ''))) return alert('Escribe un número celular válido');
         const now = new Date().toISOString();
         const payload = {
             full_name: document.getElementById('cp-name').value.trim(),
-            phone: phone,
+            phone: phone || currentProfile?.phone || null,
             consent_email: document.getElementById('cp-consent-email').checked,
             consent_whatsapp: document.getElementById('cp-consent-whatsapp').checked,
             consent_updated_at: now,

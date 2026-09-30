@@ -104,6 +104,7 @@ const jsonLd = {
             {chargers.map((c) => (
                 <article class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
                     <h3 class="font-bold text-slate-800 leading-snug">{c.title}</h3>
+                    {c.status === 'NO DISPONIBLE' && <p class="text-[11px] font-bold text-red-600 mt-0.5">⛔ No sirve por el momento</p>}
                     {c.address && <p class="text-xs text-slate-500 mt-0.5">{c.address}</p>}
                     <dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-sm mt-3">
                         <dt class="text-slate-400">Conector</dt><dd class="text-slate-800">{c.charger_type || 'No especificado'}</dd>

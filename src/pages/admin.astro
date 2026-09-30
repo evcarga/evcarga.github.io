@@ -50,7 +50,7 @@
     <main id="admin-view" class="hidden container mx-auto px-4 py-6">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm"><p class="lbl">Cargadores</p><p id="stat-chargers" class="text-2xl font-bold text-slate-800">–</p></div>
-            <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm"><p class="lbl">Ocupados</p><p id="stat-occupied" class="text-2xl font-bold text-red-600">–</p></div>
+            <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm"><p class="lbl">Ocupados / No disp.</p><p id="stat-occupied" class="text-2xl font-bold text-red-600">–</p></div>
             <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm"><p class="lbl">Usuarios</p><p id="stat-users" class="text-2xl font-bold text-slate-800">–</p></div>
             <div class="bg-white rounded-xl p-4 border border-slate-100 shadow-sm"><p class="lbl">Anuncios activos</p><p id="stat-ads" class="text-2xl font-bold text-green-600">–</p></div>
         </div>
@@ -60,12 +60,17 @@
             <button class="tab-btn px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="users">👥 Usuarios</button>
             <button class="tab-btn px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="ads">📢 Anuncios</button>
             <button class="tab-btn px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="visits">📈 Visitas</button>
+            <button class="tab-btn px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="reports">⚠️ Reportes <span id="badge-reports" class="hidden ml-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full"></span></button>
+            <button class="tab-btn px-4 py-2 rounded-lg font-bold bg-white border border-slate-200" data-tab="market">🛒 Marketplace <span id="badge-market" class="hidden ml-1 bg-yellow-500 text-white text-[10px] px-1.5 py-0.5 rounded-full"></span></button>
         </div>
 
         <!-- Cargadores -->
         <section id="tab-chargers" class="tab bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
             <div class="flex flex-col sm:flex-row gap-2 mb-4">
                 <input id="charger-search" oninput="renderChargers()" placeholder="Buscar por título, ciudad, dirección o dueño" class="field flex-grow">
+                <select id="charger-status-filter" onchange="renderChargers()" class="field sm:w-48">
+                    <option value="">Todos los estados</option><option value="DISPONIBLE">Disponibles</option><option value="OCUPADO">Ocupados</option><option value="NO DISPONIBLE">No disponibles</option>
+                </select>
                 <button onclick="openChargerForm()" class="bg-yellow-400 text-yellow-900 px-4 py-2 rounded-lg font-bold hover:bg-yellow-300 shrink-0">+ Nuevo cargador</button>
             </div>
             <div class="overflow-x-auto">
@@ -127,7 +132,55 @@
                 <tbody id="referrers-body"></tbody>
             </table>
         </section>
+
+        <!-- Reportes de novedades -->
+        <section id="tab-reports" class="tab hidden bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <div class="flex justify-between items-center gap-2 mb-4">
+                <p class="text-sm text-slate-500">Novedades que reportan los usuarios desde la lista y el mapa.</p>
+                <select id="reports-filter" onchange="renderReports()" class="field w-40"><option value="nuevo">Nuevos</option><option value="revisado">Revisados</option><option value="">Todos</option></select>
+            </div>
+            <div id="reports-list" class="space-y-2"></div>
+        </section>
+
+        <!-- Marketplace -->
+        <section id="tab-market" class="tab hidden bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <div class="flex justify-between items-center gap-2 mb-4">
+                <p class="text-sm text-slate-500">Toda publicación debe aprobarse para aparecer en <a href="/entorno.html" target="_blank" class="text-green-700 underline">Comunidad EV</a>.</p>
+                <select id="market-filter" onchange="renderMarketAdmin()" class="field w-40"><option value="pendiente">Pendientes</option><option value="aprobado">Aprobadas</option><option value="rechazado">Rechazadas</option><option value="">Todas</option></select>
+            </div>
+            <div id="market-admin-list" class="grid md:grid-cols-2 gap-3"></div>
+        </section>
     </main>
+
+    <!-- Editar publicación del marketplace -->
+    <div id="modal-listing" class="modal">
+        <form id="form-listing" class="bg-white p-6 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto m-4 space-y-3">
+            <h2 class="text-xl font-bold text-slate-800">Editar publicación</h2>
+            <input type="hidden" id="l-id">
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Tipo</label><select id="l-kind" class="field"><option value="producto">Producto</option><option value="servicio">Servicio</option></select></div>
+                <div><label class="lbl">Categoría</label><input id="l-cat" class="field" maxlength="40" required></div>
+            </div>
+            <div><label class="lbl">Título</label><input id="l-title" class="field" maxlength="120" required></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Precio (vacío = a convenir)</label><input id="l-price" type="number" step="0.01" min="0" class="field"></div>
+                <div><label class="lbl">Ciudad</label><input id="l-city" class="field" maxlength="80"></div>
+            </div>
+            <div><label class="lbl">Descripción</label><textarea id="l-desc" rows="4" maxlength="3000" class="field"></textarea></div>
+            <div class="grid grid-cols-2 gap-3">
+                <label class="flex items-center gap-2 text-sm font-bold"><input id="l-company" type="checkbox" class="w-4 h-4"> Empresa</label>
+                <input id="l-company-name" class="field" maxlength="80" placeholder="Nombre de la empresa">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="lbl">Estado</label><select id="l-status" class="field"><option value="pendiente">Pendiente</option><option value="aprobado">Aprobado</option><option value="rechazado">Rechazado</option></select></div>
+                <div><label class="lbl">Nota para el usuario</label><input id="l-note" class="field" maxlength="300"></div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="closeModal('modal-listing')" class="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700">Guardar</button>
+            </div>
+        </form>
+    </div>
 
     <!-- Formulario cargador -->
     <div id="modal-charger" class="modal">
@@ -160,7 +213,7 @@
             </div>
             <div><label class="lbl">Link Google Maps</label><input id="c-link" type="url" class="field"></div>
             <div class="grid grid-cols-2 gap-3">
-                <div><label class="lbl">Estado</label><select id="c-status" class="field"><option>DISPONIBLE</option><option>OCUPADO</option></select></div>
+                <div><label class="lbl">Estado</label><select id="c-status" class="field"><option>DISPONIBLE</option><option>OCUPADO</option><option>NO DISPONIBLE</option></select></div>
                 <div><label class="lbl">Teléfono de contacto</label><input id="c-contact-phone" class="field" maxlength="30"></div>
             </div>
             <div class="flex justify-end gap-2 pt-2">
@@ -229,7 +282,7 @@
         document.getElementById('btn-logout').classList.remove('hidden');
         document.getElementById('login-view').classList.add('hidden');
         document.getElementById('admin-view').classList.remove('hidden');
-        loadChargers(); loadUsers(); loadAds(); loadVisits();
+        loadChargers(); loadUsers(); loadAds(); loadVisits(); loadReports(); loadMarketAdmin();
     }
 
     function showLogin(msg) {
@@ -262,6 +315,8 @@
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
         document.querySelectorAll('.tab').forEach(t => t.classList.toggle('hidden', t.id !== 'tab-' + btn.dataset.tab));
         if (btn.dataset.tab === 'visits') loadVisits();
+        if (btn.dataset.tab === 'reports') loadReports();
+        if (btn.dataset.tab === 'market') loadMarketAdmin();
     }));
 
     // ================= CARGADORES =================
@@ -270,13 +325,15 @@
         if (error) return alert(error.message);
         chargers = data || [];
         document.getElementById('stat-chargers').innerText = chargers.length;
-        document.getElementById('stat-occupied').innerText = chargers.filter(c => c.status === 'OCUPADO').length;
+        document.getElementById('stat-occupied').innerText = `${chargers.filter(c => c.status === 'OCUPADO').length} / ${chargers.filter(c => c.status === 'NO DISPONIBLE').length}`;
         renderChargers();
     }
 
     function renderChargers() {
         const term = normalize(val('charger-search'));
-        const list = term ? chargers.filter(c => [c.title, c.city, c.address, c.provincia, c.profiles?.full_name].some(f => normalize(f).includes(term))) : chargers;
+        const st = val('charger-status-filter');
+        const list = chargers.filter(c => (!st || (c.status || 'DISPONIBLE') === st) &&
+            (!term || [c.title, c.city, c.address, c.provincia, c.profiles?.full_name].some(f => normalize(f).includes(term))));
         document.getElementById('chargers-body').innerHTML = list.map(c => `
             <tr class="border-b border-slate-50 hover:bg-slate-50">
                 <td class="p-2 text-slate-400">${c.id}</td>
@@ -284,7 +341,9 @@
                 <td class="p-2">${escapeHtml(c.city)}</td>
                 <td class="p-2">${escapeHtml(c.power)}</td>
                 <td class="p-2 text-xs">${escapeHtml(c.charger_type)}</td>
-                <td class="p-2"><button onclick="toggleStatus(${c.id})" title="Cambiar estado" class="text-[10px] font-extrabold px-2 py-1 rounded-full ${c.status === 'OCUPADO' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}">${escapeHtml(c.status)}</button></td>
+                <td class="p-2"><select onchange="setChargerStatus(${c.id}, this.value)" title="Cambiar estado" class="text-[10px] font-extrabold px-1.5 py-1 rounded-full border-0 ${STATUS_STYLE[c.status] || STATUS_STYLE.DISPONIBLE}">
+                    ${['DISPONIBLE', 'OCUPADO', 'NO DISPONIBLE'].map(s => `<option ${s === (c.status || 'DISPONIBLE') ? 'selected' : ''}>${s}</option>`).join('')}
+                </select></td>
                 <td class="p-2 text-xs">${escapeHtml(c.profiles?.full_name || '–')}</td>
                 <td class="p-2 whitespace-nowrap text-right">
                     <button onclick="openChargerForm(${c.id})" class="text-blue-600 hover:underline mr-2">Editar</button>
@@ -322,11 +381,11 @@
         loadChargers();
     });
 
-    async function toggleStatus(id) {
-        const c = chargers.find(x => x.id === id);
-        const status = c.status === 'OCUPADO' ? 'DISPONIBLE' : 'OCUPADO';
+    const STATUS_STYLE = { DISPONIBLE: 'bg-green-50 text-green-600', OCUPADO: 'bg-red-50 text-red-600', 'NO DISPONIBLE': 'bg-slate-200 text-slate-700' };
+    async function setChargerStatus(id, status) {
         const { error } = await _supabase.from('chargers').update({ status, occupied_until: null }).eq('id', id);
-        if (error) alert(error.message); else loadChargers();
+        if (error) alert(error.message);
+        loadChargers();
     }
 
     async function deleteCharger(id) {
@@ -502,6 +561,121 @@
             el.addEventListener('mouseleave', () => { tip.classList.add('hidden'); el.setAttribute('fill', 'transparent'); });
         });
     }
+
+    // ================= REPORTES =================
+    const REPORT_KIND = { no_funciona: '🔴 No funciona', info_incorrecta: '📍 Información/ubicación incorrecta', precio: '💲 Cambió el precio', horario: '🕒 Cambió el horario', ya_no_existe: '❌ Ya no existe', otro: '💬 Otro' };
+    let reports = [];
+    async function loadReports() {
+        const { data, error } = await _supabase.from('charger_reports').select('*, chargers(id, title, city, status)').order('created_at', { ascending: false });
+        if (error) return console.error(error);
+        reports = data || [];
+        const n = reports.filter(r => r.status === 'nuevo').length;
+        const b = document.getElementById('badge-reports'); b.innerText = n; b.classList.toggle('hidden', !n);
+        renderReports();
+    }
+    function renderReports() {
+        const f = val('reports-filter');
+        const email = (uid) => users.find(u => u.id === uid)?.email;
+        document.getElementById('reports-list').innerHTML = reports.filter(r => !f || r.status === f).map(r => `
+            <div class="border rounded-xl p-3 ${r.status === 'nuevo' ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}">
+                <div class="flex justify-between gap-2 flex-wrap">
+                    <p class="font-bold text-slate-800">${escapeHtml(r.chargers?.title || 'Cargador eliminado')} <span class="text-xs font-normal text-slate-500">#${r.charger_id} · ${escapeHtml(r.chargers?.city || '')} · ${escapeHtml(r.chargers?.status || '')}</span></p>
+                    <span class="text-xs text-slate-400">${fmtDate(r.created_at)}</span>
+                </div>
+                <p class="text-sm mt-1">${REPORT_KIND[r.kind] || r.kind}</p>
+                ${r.message ? `<p class="text-sm text-slate-600 mt-1 whitespace-pre-line">${escapeHtml(r.message)}</p>` : ''}
+                <p class="text-[11px] text-slate-400 mt-1">${r.user_id ? 'Por: ' + escapeHtml(email(r.user_id) || 'usuario registrado') : 'Visitante sin cuenta'}</p>
+                <div class="flex flex-wrap gap-3 mt-2 text-sm">
+                    ${r.chargers ? `<button onclick="openChargerForm(${r.charger_id})" class="text-blue-600 hover:underline">Editar cargador</button>
+                    <button onclick="setChargerStatus(${r.charger_id}, 'NO DISPONIBLE').then(loadReports)" class="text-slate-700 hover:underline">Marcar no disponible</button>` : ''}
+                    ${r.status === 'nuevo' ? `<button onclick="setReport(${r.id}, 'revisado')" class="text-green-700 font-bold hover:underline">✓ Marcar revisado</button>` : `<button onclick="setReport(${r.id}, 'nuevo')" class="text-slate-500 hover:underline">Volver a nuevo</button>`}
+                    <button onclick="deleteReport(${r.id})" class="text-red-600 hover:underline">Eliminar</button>
+                </div>
+            </div>`).join('') || '<p class="text-sm text-slate-400 text-center py-6">No hay reportes.</p>';
+    }
+    async function setReport(id, status) {
+        const { error } = await _supabase.from('charger_reports').update({ status }).eq('id', id);
+        if (error) alert(error.message); loadReports();
+    }
+    async function deleteReport(id) {
+        if (!confirm('¿Eliminar este reporte?')) return;
+        const { error } = await _supabase.from('charger_reports').delete().eq('id', id);
+        if (error) alert(error.message); loadReports();
+    }
+
+    // ================= MARKETPLACE =================
+    let marketItems = [];
+    async function loadMarketAdmin() {
+        const { data, error } = await _supabase.from('market_listings').select('*').order('created_at', { ascending: false });
+        if (error) return console.error(error);
+        marketItems = data || [];
+        const n = marketItems.filter(l => l.status === 'pendiente').length;
+        const b = document.getElementById('badge-market'); b.innerText = n; b.classList.toggle('hidden', !n);
+        renderMarketAdmin();
+    }
+    function renderMarketAdmin() {
+        const f = val('market-filter');
+        const owner = (uid) => users.find(u => u.id === uid);
+        const style = { pendiente: 'bg-yellow-100 text-yellow-800', aprobado: 'bg-green-100 text-green-800', rechazado: 'bg-red-100 text-red-700' };
+        document.getElementById('market-admin-list').innerHTML = marketItems.filter(l => !f || l.status === f).map(l => `
+            <div class="border border-slate-200 rounded-xl overflow-hidden flex">
+                <img src="${escapeHtml(l.images?.[0] || '/favicon-96.png')}" class="w-28 object-cover bg-slate-100" alt="">
+                <div class="p-3 flex-grow min-w-0 space-y-1">
+                    <div class="flex justify-between gap-2">
+                        <p class="font-bold text-slate-800 text-sm leading-tight">${escapeHtml(l.title)}</p>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full h-fit ${style[l.status]}">${l.status.toUpperCase()}</span>
+                    </div>
+                    <p class="text-xs text-slate-500">${l.kind === 'servicio' ? 'Servicio' : 'Producto'} · ${escapeHtml(l.category)} · ${l.price != null ? '$' + l.price : 'A convenir'} · ${escapeHtml(l.city || '')}${l.is_company ? ' · 🏢 ' + escapeHtml(l.company_name || 'Empresa') : ''}${l.is_seed ? ' · <b>PRUEBA</b>' : ''}</p>
+                    <p class="text-xs text-slate-600 line-clamp-2">${escapeHtml(l.description || '')}</p>
+                    <p class="text-[11px] text-slate-400">Por: ${escapeHtml(owner(l.user_id)?.email || l.user_id)}${l.share_phone ? ' · Tel: ' + escapeHtml(l.contact_phone || '') : ' · Sin teléfono público'} · ${l.images?.length || 0} img</p>
+                    <div class="flex flex-wrap gap-3 text-xs pt-1">
+                        ${l.status !== 'aprobado' ? `<button onclick="setListing(${l.id}, 'aprobado')" class="text-green-700 font-bold hover:underline">✓ Aprobar</button>` : ''}
+                        ${l.status !== 'rechazado' ? `<button onclick="rejectListing(${l.id})" class="text-amber-700 font-bold hover:underline">✕ Rechazar</button>` : ''}
+                        <button onclick="openListingForm(${l.id})" class="text-blue-600 hover:underline">Editar</button>
+                        <a href="/entorno.html?p=${l.id}" target="_blank" class="text-slate-500 hover:underline">Ver</a>
+                        <button onclick="deleteListing(${l.id})" class="text-red-600 hover:underline">Eliminar</button>
+                    </div>
+                </div>
+            </div>`).join('') || '<p class="text-sm text-slate-400 text-center py-6 md:col-span-2">No hay publicaciones.</p>';
+    }
+    async function setListing(id, status, admin_note = null) {
+        const { error } = await _supabase.from('market_listings').update({ status, admin_note }).eq('id', id);
+        if (error) alert(error.message); loadMarketAdmin();
+    }
+    function rejectListing(id) {
+        const note = prompt('Motivo del rechazo (lo verá el usuario):', '');
+        if (note === null) return;
+        setListing(id, 'rechazado', note.trim().slice(0, 300) || null);
+    }
+    async function deleteListing(id) {
+        const l = marketItems.find(x => x.id === id);
+        if (!confirm(`¿Eliminar "${l?.title}"? También se borrarán sus imágenes.`)) return;
+        const paths = (l?.images || []).map(u => u.split('/storage/v1/object/public/market/')[1]).filter(Boolean);
+        if (paths.length) await _supabase.storage.from('market').remove(paths);
+        const { error } = await _supabase.from('market_listings').delete().eq('id', id);
+        if (error) alert(error.message); loadMarketAdmin();
+    }
+    function openListingForm(id) {
+        const l = marketItems.find(x => x.id === id);
+        setVal('l-id', l.id); setVal('l-kind', l.kind); setVal('l-cat', l.category); setVal('l-title', l.title);
+        setVal('l-price', l.price); setVal('l-city', l.city); setVal('l-desc', l.description);
+        document.getElementById('l-company').checked = l.is_company; setVal('l-company-name', l.company_name);
+        setVal('l-status', l.status); setVal('l-note', l.admin_note);
+        openModal('modal-listing');
+    }
+    document.getElementById('form-listing').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const price = val('l-price');
+        const payload = {
+            kind: val('l-kind'), category: val('l-cat'), title: val('l-title'), price: price === '' ? null : parseFloat(price),
+            city: val('l-city') || null, description: val('l-desc') || null,
+            is_company: document.getElementById('l-company').checked, company_name: val('l-company-name') || null,
+            status: val('l-status'), admin_note: val('l-note') || null
+        };
+        const { error } = await _supabase.from('market_listings').update(payload).eq('id', val('l-id'));
+        if (error) return alert(error.message);
+        closeModal('modal-listing'); loadMarketAdmin();
+    });
 
     init();
 </script>
