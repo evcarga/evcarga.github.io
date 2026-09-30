@@ -64,9 +64,9 @@ import { PLACES } from '../lib/ecuador-places.js';
         <div class="container mx-auto px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar text-xs font-semibold">
             <a href="#market" class="chip bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-full">🛒 Marketplace</a>
             <a href="#asistente" class="chip bg-slate-100 px-3 py-1.5 rounded-full">🤖 Asistente</a>
+            <a href="#programada" class="chip bg-slate-100 px-3 py-1.5 rounded-full">⏰ Carga programada</a>
             <a href="#planificador" class="chip bg-slate-100 px-3 py-1.5 rounded-full">🗺️ Planificador</a>
             <a href="#calculadora" class="chip bg-slate-100 px-3 py-1.5 rounded-full">💰 Calculadora</a>
-            <a href="#programada" class="chip bg-slate-100 px-3 py-1.5 rounded-full">⏰ Carga programada</a>
             <a href="#apps" class="chip bg-slate-100 px-3 py-1.5 rounded-full">📱 Apps</a>
             <a href="#directorio" class="chip bg-slate-100 px-3 py-1.5 rounded-full">📇 Directorio</a>
             <a href="#autonomias" class="chip bg-slate-100 px-3 py-1.5 rounded-full">📊 Autonomías</a>
@@ -123,22 +123,43 @@ import { PLACES } from '../lib/ecuador-places.js';
             </details>
         </section>
 
+        <!-- ============ CARGA PROGRAMADA ============ -->
+        <section id="programada" class="card p-4 sm:p-6">
+            <h2 class="text-xl font-bold text-slate-800">⏰ Carga programada (carga inteligente)</h2>
+            <p class="text-xs text-slate-500 mb-3">Calcula a qué hora configurar el fin de la carga en tu BYD según tu batería, el % actual y el % que quieres alcanzar.</p>
+            <div class="grid grid-cols-2 gap-2">
+                <div class="col-span-2"><label class="lbl">Modelo BYD</label><select id="s-model" class="field"></select></div>
+                <div class="col-span-2"><label class="lbl">Cómo cargas</label>
+                    <select id="s-source" class="field">
+                        <option value="7">Wallbox 7 kW (220V 32A)</option><option value="11">Wallbox 11 kW (trifásico)</option>
+                        <option value="7">Cargador portátil 220V 32A (~7 kW)</option><option value="3.5">Cargador portátil 220V 16A (~3.5 kW)</option>
+                        <option value="1.8">Tomacorriente 110V (~1.8 kW)</option>
+                    </select></div>
+                <div><label class="lbl">Batería actual (%)</label><input id="s-from" type="number" value="20" min="0" max="99" class="field"></div>
+                <div><label class="lbl">Cargar hasta (%)</label><input id="s-to" type="number" value="80" min="1" max="100" class="field"></div>
+                <div><label class="lbl">Hora de inicio</label><input id="s-start" type="time" value="22:00" class="field"></div>
+                <div><label class="lbl">Precio energía ($/kWh)</label><input id="s-price" type="number" value="0.06" step="0.01" min="0" class="field"></div>
+            </div>
+            <button onclick="calcSmart()" class="mt-3 w-full sm:w-auto bg-green-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-green-700 shadow">Calcular</button>
+            <div id="s-out" class="mt-3 bg-green-50 border border-green-200 rounded-xl p-4 text-sm"></div>
+            <p class="text-[11px] text-slate-400 mt-2">Capacidad y potencia de carga AC según fichas técnicas (pueden variar por versión y año; revisa tu manual). Incluye ~10% de pérdidas y la carga más lenta por encima del 90%.</p>
+        </section>
+
         <!-- ============ PLANIFICADOR ============ -->
         <section id="planificador" class="card p-4 sm:p-6">
             <h2 class="text-xl font-bold text-slate-800">🗺️ Planificador de viajes</h2>
-            <p class="text-xs text-slate-500 mb-3">Traza tu ruta, calcula con qué batería llegas y mira los cargadores de EvCarga en el camino. Las autonomías son referenciales: ajústalas a tu carro.</p>
+            <p class="text-xs text-slate-500 mb-3">Traza tu ruta y calcula con qué batería llegas considerando <b>las subidas y bajadas reales del camino</b> (en Ecuador pesan mucho: subir a la sierra consume más, bajar a la costa recupera energía). Ajusta la autonomía a tu carro.</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div><label class="lbl">Origen</label><input id="p-from" list="ec-places" placeholder="Ej: Quito" class="field"></div>
                 <div><label class="lbl">Destino</label><input id="p-to" list="ec-places" placeholder="Ej: Manta" class="field"></div>
                 <div><label class="lbl">Vehículo</label><select id="p-model" onchange="presetModel()" class="field"></select></div>
-                <div><label class="lbl">Autonomía real al 100% (km)</label><input id="p-range" type="number" min="50" class="field"></div>
+                <div><label class="lbl">Autonomía real en carretera plana (km)</label><input id="p-range" type="number" min="50" class="field"></div>
                 <div><label class="lbl">Batería al salir (%)</label><input id="p-batt" type="number" value="100" min="5" max="100" class="field"></div>
                 <div><label class="lbl">Conector de tu carro</label>
                     <select id="p-conn" class="field"><option value="">Mostrar todos</option><option value="tipo 2">Tipo 2</option><option value="tipo 1">Tipo 1</option><option value="ccs2">CCS2</option><option value="gbt">GB/T</option><option value="chademo">CHAdeMO</option></select></div>
                 <div><label class="lbl">Velocidad promedio</label>
-                    <select id="p-speed" class="field"><option value="1">~90 km/h</option><option value="1.12">~100 km/h (+12%)</option><option value="1.3">~120 km/h (+30%)</option></select></div>
-                <div><label class="lbl">Terreno</label>
-                    <select id="p-terr" class="field"><option value="1">Plano / costa</option><option value="1.1" selected>Mixto</option><option value="1.2">Montañoso / sierra</option></select></div>
+                    <select id="p-speed" class="field"><option value="0.9">~70 km/h (vías de montaña)</option><option value="1" selected>~90 km/h</option><option value="1.12">~100 km/h (+12%)</option><option value="1.3">~120 km/h (+30%)</option></select></div>
+
             </div>
             <label class="flex items-center gap-2 text-sm mt-2"><input id="p-ac" type="checkbox" checked class="w-4 h-4"> Aire acondicionado / calefacción (+5%)</label>
             <button onclick="planTrip()" id="btn-plan" class="mt-3 w-full sm:w-auto bg-green-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-green-700 shadow">Planificar ruta</button>
@@ -168,27 +189,6 @@ import { PLACES } from '../lib/ecuador-places.js';
             <div id="c-out" class="hidden mt-3 bg-green-50 border border-green-200 rounded-xl p-4 text-sm"></div>
         </section>
 
-        <!-- ============ CARGA PROGRAMADA ============ -->
-        <section id="programada" class="card p-4 sm:p-6">
-            <h2 class="text-xl font-bold text-slate-800">⏰ Carga programada (carga inteligente)</h2>
-            <p class="text-xs text-slate-500 mb-3">Calcula a qué hora configurar el fin de la carga en tu BYD según tu batería, el % actual y el % que quieres alcanzar.</p>
-            <div class="grid grid-cols-2 gap-2">
-                <div class="col-span-2"><label class="lbl">Modelo BYD</label><select id="s-model" onchange="calcSmart()" class="field"></select></div>
-                <div class="col-span-2"><label class="lbl">Cómo cargas</label>
-                    <select id="s-source" onchange="calcSmart()" class="field">
-                        <option value="7">Wallbox 7 kW (220V 32A)</option><option value="11">Wallbox 11 kW (trifásico)</option>
-                        <option value="7">Cargador portátil 220V 32A (~7 kW)</option><option value="3.5">Cargador portátil 220V 16A (~3.5 kW)</option>
-                        <option value="1.8">Tomacorriente 110V (~1.8 kW)</option>
-                    </select></div>
-                <div><label class="lbl">Batería actual (%)</label><input id="s-from" type="number" value="20" min="0" max="99" oninput="calcSmart()" class="field"></div>
-                <div><label class="lbl">Cargar hasta (%)</label><input id="s-to" type="number" value="80" min="1" max="100" oninput="calcSmart()" class="field"></div>
-                <div><label class="lbl">Hora de inicio</label><input id="s-start" type="time" value="22:00" oninput="calcSmart()" class="field"></div>
-                <div><label class="lbl">Precio energía ($/kWh)</label><input id="s-price" type="number" value="0.06" step="0.01" min="0" oninput="calcSmart()" class="field"></div>
-            </div>
-            <div id="s-out" class="mt-3 bg-green-50 border border-green-200 rounded-xl p-4 text-sm"></div>
-            <p class="text-[11px] text-slate-400 mt-2">Capacidad y potencia de carga AC según fichas técnicas (pueden variar por versión y año; revisa tu manual). Incluye ~10% de pérdidas y la carga más lenta por encima del 90%.</p>
-        </section>
-
         <!-- ============ APPS ============ -->
         <section id="apps" class="card p-4 sm:p-6">
             <h2 class="text-xl font-bold text-slate-800">📱 Apps recomendadas</h2>
@@ -214,10 +214,10 @@ import { PLACES } from '../lib/ecuador-places.js';
         <!-- ============ AUTONOMÍAS ============ -->
         <section id="autonomias" class="card p-4 sm:p-6">
             <h2 class="text-xl font-bold text-slate-800">📊 Autonomía real por modelo</h2>
-            <p class="text-xs text-slate-500 mb-3">Oficial (BYD Ecuador, ciclo NEDC) vs. real. <b>*</b> = estimado a partir de la cifra oficial; los demás son datos de la comunidad. ¡Aporta tu medición!</p>
+            <p class="text-xs text-slate-500 mb-3">Autonomía con batería llena según pruebas reales publicadas y la comunidad. <b>Subiendo / Bajando</b>: km que rindes en un viaje que sube o baja ~2.800 m (ej. Guayaquil → Quito o Quito → costa) a ~90 km/h. ¡Aporta tu medición!</p>
             <div class="hidden sm:block overflow-x-auto">
                 <table class="w-full text-sm">
-                    <thead class="text-left text-xs uppercase text-slate-400 border-b"><tr><th class="p-2">Modelo</th><th class="p-2">Oficial</th><th class="p-2">Sierra</th><th class="p-2">Costa</th><th class="p-2">Carretera</th><th class="p-2">Notas</th></tr></thead>
+                    <thead class="text-left text-xs uppercase text-slate-400 border-b"><tr><th class="p-2">Modelo</th><th class="p-2">Oficial</th><th class="p-2">Ciudad</th><th class="p-2">Carretera</th><th class="p-2">⬆️ Subiendo</th><th class="p-2">⬇️ Bajando</th><th class="p-2">Notas / fuente</th></tr></thead>
                     <tbody id="db-table"></tbody>
                 </table>
             </div>
@@ -745,15 +745,23 @@ import { PLACES } from '../lib/ecuador-places.js';
 
     // ================= PLANIFICADOR =================
     // Autonomía real aproximada (km al 100%) — referencial, ajustable
+    // [modelo, autonomía real en carretera plana a ~90 km/h (km), batería útil (kWh), peso con 2 personas (kg)]
+    // BYD: consumos de pruebas reales (ver tabla de autonomías); otros: referenciales
     const VEHICLES = [
-        ['BYD Seagull 300', 240], ['BYD Seagull 400', 270], ['BYD Dolphin', 320], ['BYD Yuan Pro', 300], ['BYD Yuan Plus', 380],
-        ['BYD Sealion 7', 345], ['BYD Seal', 420], ['BYD Han', 480],
-        ['Kia EV5', 400], ['Kia EV6', 450], ['Kia Niro EV', 400], ['Kia Soul EV', 380],
-        ['Hyundai Kona EV', 400], ['Hyundai Ioniq 5', 430], ['MG4', 400], ['MG ZS EV', 300],
-        ['JAC E10X', 250], ['JAC E-JS4', 330], ['Renault Kwid E-Tech', 220], ['GWM Ora 03', 300],
-        ['Volvo EX30', 330], ['Tesla Model 3', 430], ['Tesla Model Y', 400], ['Nissan Leaf (40 kWh)', 240],
-        ['Otro (escribe tu autonomía)', 0]
+        ['BYD Seagull 300', 235, 30.08, 1300], ['BYD Seagull 400', 300, 38.88, 1350], ['BYD Dolphin', 290, 44.9, 1550],
+        ['BYD Yuan Pro', 280, 45.1, 1600], ['BYD Yuan Plus', 350, 60.48, 1900], ['BYD Sealion 7', 400, 82.56, 2350],
+        ['BYD Seal', 450, 82.56, 2150], ['BYD Han', 450, 85.4, 2200],
+        ['Kia EV5', 380, 64, 2050], ['Kia EV6', 430, 77.4, 2100], ['Kia Niro EV', 400, 64.8, 1850], ['Kia Soul EV', 380, 64, 1800],
+        ['Hyundai Kona EV', 400, 64, 1850], ['Hyundai Ioniq 5', 410, 77.4, 2100], ['MG4', 390, 64, 1800], ['MG ZS EV', 300, 51, 1700],
+        ['JAC E10X', 230, 31, 1250], ['JAC E-JS4', 320, 55, 1750], ['Renault Kwid E-Tech', 200, 26.8, 1100], ['GWM Ora 03', 300, 48, 1650],
+        ['Volvo EX30', 330, 51, 1900], ['Tesla Model 3', 420, 60, 1900], ['Tesla Model Y', 390, 60, 2100], ['Nissan Leaf (40 kWh)', 240, 40, 1700],
+        ['Otro (escribe tu autonomía)', 0, 0, 1700]
     ];
+    // Energía por desnivel (kWh): subir cuesta m·g·h / 0.85 (eficiencia del motor).
+    // Al bajar, la gravedad reemplaza al motor (ahorro casi total); solo lo que hay que frenar se regenera al ~60%.
+    const potKwh = (mass, meters) => mass * 9.81 * meters / 3.6e6;
+    const climbKwh = (mass, meters) => potKwh(mass, meters) / 0.85;
+    const descentKwh = (mass, meters) => 0.85 * potKwh(mass, meters); // ahorro típico en un viaje largo de bajada
     $('p-model').innerHTML = VEHICLES.map((v, i) => `<option value="${i}">${v[0]}${v[1] ? ` (~${v[1]} km)` : ''}</option>`).join('');
     function presetModel() {
         const v = VEHICLES[$('p-model').value];
@@ -782,6 +790,20 @@ import { PLACES } from '../lib/ecuador-places.js';
         return map[conn].test(t) || /tomacorriente|toma 2/.test(t); // tomacorriente: con cargador portátil
     }
 
+    // Perfil de altura (área) con la batería estimada (línea) a lo largo del trayecto
+    function profileSvg(elev, battAt) {
+        const W = 600, H = 120, max = Math.max(...elev, 100), n = elev.length - 1;
+        const x = (i) => (i / n * W).toFixed(1);
+        const area = `M0,${H} ` + elev.map((e, i) => `L${x(i)},${(H - e / max * (H - 10)).toFixed(1)}`).join(' ') + ` L${W},${H} Z`;
+        const line = battAt.map((b, i) => `${i ? 'L' : 'M'}${x(i)},${(H - Math.max(0, b) / 100 * (H - 10)).toFixed(1)}`).join(' ');
+        return `<div class="bg-white border border-slate-200 rounded-xl p-3">
+            <div class="flex justify-between text-[11px] text-slate-500 mb-1"><span>⛰️ Altura del camino (máx. ${Math.round(max).toLocaleString('es-EC')} m)</span><span class="text-green-700 font-semibold">— Batería estimada</span></div>
+            <svg viewBox="0 0 ${W} ${H}" class="w-full h-24" preserveAspectRatio="none" role="img" aria-label="Perfil de altura y batería">
+                <path d="${area}" fill="#cbd5e1" /><path d="${line}" fill="none" stroke="#16a34a" stroke-width="2.5" vector-effect="non-scaling-stroke" />
+            </svg>
+            <div class="flex justify-between text-[10px] text-slate-400"><span>Origen · ${Math.round(battAt[0])}%</span><span>Destino · ${Math.round(battAt[battAt.length - 1])}%</span></div></div>`;
+    }
+
     async function planTrip() {
         const from = $('p-from').value.trim(), to = $('p-to').value.trim();
         const range = +$('p-range').value, start = +$('p-batt').value || 100;
@@ -798,8 +820,43 @@ import { PLACES } from '../lib/ecuador-places.js';
             const dist = route.distance / 1000, hours = route.duration / 3600;
             const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
 
-            const f = (+$('p-speed').value) * (+$('p-terr').value) * ($('p-ac').checked ? 1.05 : 1);
-            const eff = range / f, need = dist / eff * 100, arrive = start - need;
+            const f = (+$('p-speed').value) * ($('p-ac').checked ? 1.05 : 1);
+            const veh = VEHICLES[$('p-model').value];
+            const cap = veh[2] || range * 0.15, mass = veh[3];
+            const pctPerKm = f / range * 100; // % de batería por km en plano
+
+            // Perfil de altura real de la ruta (Open-Meteo, hasta 100 puntos)
+            const idx = Array.from({ length: Math.min(100, coords.length) }, (_, i) => Math.round(i * (coords.length - 1) / (Math.min(100, coords.length) - 1)));
+            let elev = null;
+            try {
+                const er = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${idx.map(i => coords[i][0].toFixed(4)).join(',')}&longitude=${idx.map(i => coords[i][1].toFixed(4)).join(',')}`);
+                const raw = (await er.json()).elevation;
+                // Suaviza el ruido del modelo de terreno (media móvil de 5 puntos) para no sumar subidas/bajadas falsas
+                elev = raw.map((_, i) => { const w = raw.slice(Math.max(0, i - 2), i + 3); return w.reduce((s, v) => s + v, 0) / w.length; });
+                elev[0] = raw[0]; elev[elev.length - 1] = raw[raw.length - 1];
+            } catch (e) { elev = null; }
+            // Batería a lo largo del trayecto
+            const segKm = [0]; for (let i = 1; i < idx.length; i++) segKm.push(segKm[i - 1] + kmBetween(coords[idx[i - 1]], coords[idx[i]]));
+            const kmScale = dist / (segKm[segKm.length - 1] || 1);
+            let batt = start, up = 0, down = 0, lowKm = null; const battAt = [start];
+            for (let i = 1; i < idx.length; i++) {
+                const km = (segKm[i] - segKm[i - 1]) * kmScale;
+                let used = km * pctPerKm;
+                if (elev) {
+                    const dh = elev[i] - elev[i - 1];
+                    if (dh > 0) { up += dh; used += climbKwh(mass, dh) / cap * 100; }
+                    else if (dh < 0) {
+                        down -= dh;
+                        const flatKwh = used / 100 * cap, pot = potKwh(mass, -dh);
+                        const offset = Math.min(pot, flatKwh);            // la gravedad cubre lo que gastaría el motor
+                        const kwh = flatKwh - offset - 0.6 * (pot - offset); // el exceso se frena y se regenera al 60%
+                        used = kwh / cap * 100;
+                    }
+                }
+                batt = Math.min(100, batt - used); battAt.push(batt);
+                if (lowKm === null && batt < 20) lowKm = segKm[i] * kmScale;
+            }
+            const need = start - batt, arrive = batt, eff = need > 0 ? dist / need * 100 : range;
             let verdict;
             if (arrive >= 20) verdict = `<p class="text-green-700 font-bold">✅ Llegas sin problema, con ~${Math.round(arrive)}% de batería.</p>`;
             else if (arrive >= 0) verdict = `<p class="text-amber-600 font-bold">⚠️ Llegas justo (~${Math.round(arrive)}%). Baja la velocidad, apaga el clima o carga unos minutos en ruta.</p>`;
@@ -827,7 +884,7 @@ import { PLACES } from '../lib/ecuador-places.js';
             // Sugerencia de parada: último cargador antes de bajar a ~20%
             let stopHTML = '';
             if (arrive < 20) {
-                const kmLimit = Math.max(0, (start - 20) / 100 * eff);
+                const kmLimit = lowKm ?? Math.max(0, (start - 20) / 100 * eff);
                 const cands = onRoute.filter(c => c.km <= kmLimit && c.km > 15);
                 const stop = cands.filter(c => c.fast).pop() || cands.pop();
                 stopHTML = stop
@@ -840,7 +897,8 @@ import { PLACES } from '../lib/ecuador-places.js';
                     <div class="bg-slate-50 rounded-xl p-2"><p class="lbl">Tiempo</p><p class="text-lg font-bold">${Math.floor(hours)}h ${Math.round(hours % 1 * 60)}m</p></div>
                     <div class="bg-slate-50 rounded-xl p-2"><p class="lbl">Batería al llegar</p><p class="text-lg font-bold ${arrive < 0 ? 'text-red-600' : arrive < 20 ? 'text-amber-600' : 'text-green-700'}">${Math.round(arrive)}%</p></div>
                 </div>
-                <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-1">${verdict}${stopHTML}<p class="text-[11px] text-slate-400">Autonomía efectiva estimada: ${Math.round(eff)} km (velocidad, terreno y clima).</p></div>`;
+                <div class="bg-white border border-slate-200 rounded-xl p-3 space-y-1">${verdict}${stopHTML}<p class="text-[11px] text-slate-400">${elev ? `Desnivel del camino: ⬆️ sube ${Math.round(up).toLocaleString('es-EC')} m · ⬇️ baja ${Math.round(down).toLocaleString('es-EC')} m (de ${Math.round(elev[0])} a ${Math.round(elev[elev.length - 1])} m s.n.m.). ` : 'No se pudo obtener la altura del camino; cálculo en plano. '}Autonomía efectiva en esta ruta: ~${Math.round(eff)} km.</p></div>
+                ${elev ? profileSvg(elev, battAt) : ''}`;
 
             // Mapa con ruta y cargadores
             $('route-map').classList.remove('hidden');
@@ -960,24 +1018,37 @@ import { PLACES } from '../lib/ecuador-places.js';
     }
 
     // ================= AUTONOMÍAS Y VIAJES =================
-    // Oficial: BYD Ecuador (NEDC) y fichas técnicas. Real: comunidad o estimado* (oficial × costa 0.80 / sierra 0.72 / carretera 90–100 km/h 0.68)
+    // [modelo, oficial, ciudad real, carretera real 90–100 km/h, índice en VEHICLES (para subida/bajada), nota/fuente]
     const DB = [
-        ['Seagull 300', '305 km NEDC · 30.08 kWh', '~210–230*', '~235–255*', '~195–215*', 'Versión de batería pequeña. Llantas anchas restan 3–15%.'],
-        ['Seagull 400', '380 km NEDC (vendido como 400 km) · 38.88 kWh', '~240–260', '~260–280', '~240–280', 'Dato de la comunidad. 380 y 400 km son el mismo carro con distinta forma de medir.'],
-        ['Dolphin', '405 km NEDC · 44.9 kWh', '~285–305*', '~315–340*', '~265–290*', 'Estimado'],
-        ['Yuan Pro', '380 km NEDC · 45.1 kWh', '~265–285*', '~295–315*', '~250–270*', 'Estimado'],
-        ['Yuan Plus', '480 km NEDC · 60.48 kWh', '~335–360*', '~375–400*', '~315–340*', 'Estimado'],
-        ['Sealion 7', '456 km NEDC · 82.56 kWh', '~340–350 (Quito)', '~360–380*', '~300–330*', 'Sierra: dato de la comunidad'],
-        ['Song Plus DM-i', '~100 km eléctricos (ciudad) · 1.105 km combinada · 18.3 kWh', '~70–80 eléctricos*', '~85–95 eléctricos*', '~65–75 eléctricos*', 'Híbrido enchufable: después sigue con gasolina'],
+        ['Seagull 300', '305 km NEDC · 30.08 kWh', '~270–290', '~225–245', 0, 'Estimado con el consumo medido del Seagull 400 (misma carrocería, batería menor).'],
+        ['Seagull 400', '380 km NEDC (vendido como 400 km) · 38.88 kWh', '~350–365', '~285–310', 1, 'Prueba Autoblog Uruguay: 363 km ciudad, 286 km carretera (10.7 y 13.4 kWh/100 km). Dueños en Uruguay: 280–310 km en carretera.'],
+        ['Dolphin', '405 km NEDC · 44.9 kWh', '~320–345', '~280–300', 2, 'Pruebas en Brasil: 280–320 km reales.'],
+        ['Yuan Pro', '380 km NEDC · 45.1 kWh', '~310–330', '~270–290', 3, 'Estimado por consumo típico de su tamaño.'],
+        ['Yuan Plus', '480 km NEDC · 60.48 kWh', '~390–410', '~340–360', 4, 'Estimado por consumo típico de su tamaño.'],
+        ['Sealion 7', '456 km NEDC · 82.56 kWh', '~430–460', '~380–410', 5, 'Comunidad: ~340–350 km en uso mixto en Quito (con subidas).'],
+        ['Song Plus DM-i', '~100 km eléctricos · 1.105 km combinada · 18.3 kWh', '~90–100 eléctricos', '~75–85 eléctricos', -1, 'Híbrido enchufable: después sigue con gasolina.'],
     ];
+    // Km con batería llena en un viaje que sube o baja 2.800 m (ej. Guayaquil ↔ Quito), a ~90 km/h
+    function slopeRange(vi, meters, upHill) {
+        if (vi < 0) return '—';
+        const [, hwy, cap, mass] = VEHICLES[vi];
+        const perKm = cap / hwy;
+        const usable = upHill ? cap - climbKwh(mass, meters) : cap + descentKwh(mass, meters);
+        return '~' + Math.round(usable / perKm / 5) * 5 + ' km';
+    }
     $('db-cards').innerHTML = DB.map(r => `<div class="border border-slate-200 rounded-xl p-3">
         <p class="font-bold text-slate-800">${r[0]}</p><p class="text-[11px] text-slate-500">${r[1]}</p>
-        <div class="grid grid-cols-3 gap-1.5 mt-2 text-center">
-            <div class="bg-slate-50 rounded-lg p-1.5"><p class="lbl">Sierra</p><p class="text-xs font-semibold">${r[2]}</p></div>
-            <div class="bg-slate-50 rounded-lg p-1.5"><p class="lbl">Costa</p><p class="text-xs font-semibold">${r[3]}</p></div>
-            <div class="bg-slate-50 rounded-lg p-1.5"><p class="lbl">Carretera</p><p class="text-xs font-semibold">${r[4]}</p></div>
+        <div class="grid grid-cols-2 gap-1.5 mt-2 text-center">
+            <div class="bg-slate-50 rounded-lg p-1.5"><p class="lbl">Ciudad</p><p class="text-sm font-semibold">${r[2]}</p></div>
+            <div class="bg-slate-50 rounded-lg p-1.5"><p class="lbl">Carretera</p><p class="text-sm font-semibold">${r[3]}</p></div>
+            <div class="bg-amber-50 rounded-lg p-1.5"><p class="lbl">⬆️ Subiendo 2.800 m</p><p class="text-sm font-semibold">${slopeRange(r[4], 2800, true)}</p></div>
+            <div class="bg-sky-50 rounded-lg p-1.5"><p class="lbl">⬇️ Bajando 2.800 m</p><p class="text-sm font-semibold">${slopeRange(r[4], 2800, false)}</p></div>
         </div><p class="text-[11px] text-slate-500 mt-1.5">${r[5]}</p></div>`).join('');
-    $('db-table').innerHTML = DB.map(r => `<tr class="border-b border-slate-50 align-top">${r.map((c, i) => `<td class="p-2 ${i === 0 ? 'font-semibold text-slate-800 whitespace-nowrap' : i === 5 ? 'text-xs text-slate-500 min-w-[180px]' : i === 1 ? 'text-xs min-w-[140px]' : 'whitespace-nowrap'}">${c}</td>`).join('')}</tr>`).join('');
+    $('db-table').innerHTML = DB.map(r => `<tr class="border-b border-slate-50 align-top">
+        <td class="p-2 font-semibold text-slate-800 whitespace-nowrap">${r[0]}</td><td class="p-2 text-xs min-w-[140px]">${r[1]}</td>
+        <td class="p-2 whitespace-nowrap">${r[2]}</td><td class="p-2 whitespace-nowrap">${r[3]}</td>
+        <td class="p-2 whitespace-nowrap">${slopeRange(r[4], 2800, true)}</td><td class="p-2 whitespace-nowrap">${slopeRange(r[4], 2800, false)}</td>
+        <td class="p-2 text-xs text-slate-500 min-w-[200px]">${r[5]}</td></tr>`).join('');
     const SEED_TRIPS = [{ ruta: 'Machala → Cuenca', vel: '—', batt: '100% cargado', costo: 20, tiempo: '48 min al 100%', com: 'Carga rápida, $20.' }];
 
     async function loadCommunity() {
