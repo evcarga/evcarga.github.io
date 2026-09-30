@@ -53,7 +53,10 @@ import { PLACES } from '../lib/ecuador-places.js';
         <div class="container mx-auto px-4 py-3 flex justify-between items-center gap-3">
             <a href="/" class="flex items-center gap-2 shrink-0">
                 <img src="/favicon-96.png?v=2" alt="EvCarga" width="34" height="34" class="rounded-lg">
-                <span class="text-xl font-bold text-slate-800 tracking-tight hidden sm:inline">EvCar</span>
+                <span class="leading-tight">
+                    <span class="block text-lg sm:text-xl font-bold text-slate-800 tracking-tight">EvCar</span>
+                    <span id="nav-hello" class="block text-[11px] sm:text-xs font-semibold text-green-700 max-w-[110px] sm:max-w-none truncate">Hola, Anónimo</span>
+                </span>
             </a>
             <div class="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
                 <a href="/" class="bg-slate-900 text-white px-3 py-2 rounded-lg font-bold hover:bg-black transition whitespace-nowrap">🗺️ <span class="hidden sm:inline">Mapa de cargadores</span><span class="sm:hidden">Mapa</span></a>
@@ -429,10 +432,11 @@ import { PLACES } from '../lib/ecuador-places.js';
 
     function renderNav() {
         const nav = $('nav-auth');
+        // Saludo con el primer nombre; sin sesión: "Anónimo"
+        const full = currentProfile?.full_name || currentUser?.user_metadata?.full_name || currentUser?.user_metadata?.name || '';
+        $('nav-hello').innerText = 'Hola, ' + (currentUser ? (full.trim().split(/\s+/)[0] || 'bienvenido') : 'Anónimo');
         if (currentUser) {
-            const name = currentProfile?.full_name || currentUser.email;
-            nav.innerHTML = `<span class="hidden md:inline text-xs text-green-700 font-semibold">Hola, ${escapeHtml(name)}</span>
-                <button onclick="logout()" class="bg-slate-100 px-3 py-2 rounded-lg font-bold hover:bg-slate-200">Salir</button>`;
+            nav.innerHTML = `<button onclick="logout()" class="bg-slate-100 px-3 py-2 rounded-lg font-bold hover:bg-slate-200">Salir</button>`;
             $('btn-my-listings').classList.remove('hidden');
         } else {
             nav.innerHTML = `<button onclick="requireLogin('Ingresa para ver descripciones y contactos.')" class="text-slate-600 font-semibold px-1 sm:px-2">Ingresar</button>
