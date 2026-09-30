@@ -112,7 +112,7 @@ import { PLACES } from '../lib/ecuador-places.js';
             <h2 class="text-xl font-bold text-slate-800">🤖 Asistente EV</h2>
             <p class="text-xs text-slate-500 mb-3">Responde con las preguntas frecuentes de la comunidad y, si no están, con información general. Verifica siempre los datos importantes.</p>
             <form onsubmit="event.preventDefault(); ask()" class="flex gap-2">
-                <input id="q" maxlength="500" placeholder="Ej: ¿cargo al 100% o al 80%? ¿cuánto cuesta el medidor?" class="field">
+                <input id="q" maxlength="500" onfocus="this.value=''" placeholder="Ej: ¿cargo al 100% o al 80%? ¿cuánto cuesta el medidor?" class="field">
                 <button id="btn-ask" class="bg-sky-500 text-white px-4 rounded-lg font-bold hover:bg-sky-600 shrink-0">Preguntar</button>
             </form>
             <div id="q-chips" class="flex flex-wrap gap-1.5 mt-2"></div>
