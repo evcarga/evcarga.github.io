@@ -109,7 +109,8 @@ const cities = (await getCities()).slice(0, 18);
         /* Leaflet Font Fix */
         .leaflet-container { font-family: 'Inter', sans-serif; background: #f2efe9; }
         .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,.15); }
-        .leaflet-popup-content { margin: 8px; } /* MARGEN REDUCIDO PARA OCUPAR MENOS VOLUMEN */
+        .leaflet-popup-content { margin: 8px; }
+        .leaflet-popup-content p { margin: 0; } /* Leaflet agrega márgenes grandes a los párrafos */ /* MARGEN REDUCIDO PARA OCUPAR MENOS VOLUMEN */
         .leaflet-popup-tip { box-shadow: none; }
         .leaflet-control-zoom a { border-radius: 8px !important; }
         /* Ajuste sutil para CartoDB */
@@ -817,7 +818,7 @@ const cities = (await getCities()).slice(0, 18);
                 : `<p class="mt-1.5 text-[10px] text-slate-400 italic">Sin teléfono de contacto registrado.</p>`);
 
         m.bindPopup(`
-            <div class="text-center" style="width: 200px;">
+            <div class="text-center" style="width: 190px;">
                 <h3 class="font-bold text-slate-800 text-sm leading-tight">${escapeHtml(c.title)}</h3>
                 <p class="text-[10px] font-bold ${statusColor} uppercase tracking-wide mt-0.5">${statusText}${fast ? ' · <span class="text-blue-600">⚡ Carga rápida</span>' : ''}</p>
                 <div class="text-left text-[11px] bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200 text-slate-600 mt-1.5 space-y-0.5">
@@ -828,7 +829,7 @@ const cities = (await getCities()).slice(0, 18);
                 <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" class="mt-1.5 w-full block bg-blue-600 hover:bg-blue-700 !text-white font-semibold text-[11px] py-1.5 rounded-lg">📍 Cómo llegar</a>
                 ${contactHTML}
             </div>
-        `);
+        `, { autoPanPaddingTopLeft: [10, 110], autoPanPaddingBottomRight: [10, 20] });
     }
 
     function locateUserOnMainMap() {
