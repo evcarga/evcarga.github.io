@@ -273,7 +273,8 @@ import { PLACES } from '../lib/ecuador-places.js';
     <div id="modal-listing" class="modal" onclick="if(event.target===this) closeListing()">
         <div class="bg-white rounded-2xl w-full max-w-lg mx-3 shadow-2xl max-h-[92vh] overflow-y-auto">
             <div class="relative">
-                <img id="l-img" class="w-full aspect-[4/3] object-cover bg-slate-100 rounded-t-2xl" alt="">
+                <img id="l-img" onclick="openViewer(viewerIdx)" class="w-full aspect-[4/3] object-cover bg-slate-100 rounded-t-2xl cursor-zoom-in" alt="">
+                <span class="absolute bottom-3 right-3 bg-black/60 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full pointer-events-none">🔍 Toca para ampliar</span>
                 <button onclick="closeListing()" class="absolute top-3 right-3 bg-white/90 w-9 h-9 rounded-full font-bold text-slate-600 shadow" aria-label="Cerrar">✕</button>
                 <span id="l-company" class="hidden absolute top-3 left-3 bg-blue-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">🏢 Empresa</span>
             </div>
@@ -287,6 +288,22 @@ import { PLACES } from '../lib/ecuador-places.js';
                 <div id="l-private"></div>
                 <button onclick="shareListing()" class="w-full bg-white border border-slate-300 py-2 rounded-lg font-bold text-sm hover:bg-slate-50">🔗 Compartir publicación</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ===== Visor de imágenes con zoom ===== -->
+    <div id="viewer" class="hidden fixed inset-0 z-[60] bg-black/95 select-none" style="touch-action: none;">
+        <img id="viewer-img" alt="" draggable="false" class="absolute inset-0 m-auto max-w-full max-h-full object-contain will-change-transform" style="transform-origin: center center;">
+        <div class="absolute top-0 inset-x-0 flex justify-between items-center p-3 text-white bg-gradient-to-b from-black/60 to-transparent">
+            <span id="viewer-count" class="text-sm font-semibold"></span>
+            <button onclick="closeViewer()" class="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 text-xl font-bold" aria-label="Cerrar">✕</button>
+        </div>
+        <button id="viewer-prev" onclick="viewerGo(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white text-2xl" aria-label="Anterior">‹</button>
+        <button id="viewer-next" onclick="viewerGo(1)" class="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white text-2xl" aria-label="Siguiente">›</button>
+        <div class="absolute bottom-0 inset-x-0 flex justify-center items-center gap-3 p-4 bg-gradient-to-t from-black/60 to-transparent">
+            <button onclick="viewerZoom(1 / 1.5)" class="w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white text-2xl font-bold" aria-label="Alejar">−</button>
+            <span class="text-white/70 text-[11px] text-center leading-tight">Pellizca o toca dos veces<br>para hacer zoom</span>
+            <button onclick="viewerZoom(1.5)" class="w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white text-2xl font-bold" aria-label="Acercar">+</button>
         </div>
     </div>
 
@@ -535,8 +552,9 @@ import { PLACES } from '../lib/ecuador-places.js';
         }
         currentListing = l;
         const imgs = l.images?.length ? l.images : ['/favicon-512.png'];
+        viewerImgs = imgs; viewerIdx = 0;
         $('l-img').src = imgs[0]; $('l-img').alt = l.title;
-        $('l-thumbs').innerHTML = imgs.length > 1 ? imgs.map(u => `<img src="${escapeHtml(u)}" onclick="$('l-img').src=this.src" class="w-14 h-14 object-cover rounded-lg border border-slate-200 cursor-pointer" loading="lazy" alt="">`).join('') : '';
+        $('l-thumbs').innerHTML = imgs.length > 1 ? imgs.map((u, i) => `<img src="${escapeHtml(u)}" onclick="viewerIdx=${i}; $('l-img').src=this.src" class="w-14 h-14 object-cover rounded-lg border border-slate-200 cursor-pointer" loading="lazy" alt="">`).join('') : '';
         $('l-company').classList.toggle('hidden', !l.is_company);
         $('l-company').innerText = l.is_company ? '🏢 ' + (l.company_name || 'Empresa') : '';
         $('l-title').innerText = l.title;
@@ -562,6 +580,114 @@ import { PLACES } from '../lib/ecuador-places.js';
         history.replaceState(null, '', `?p=${l.id}#market`);
         openModal('modal-listing');
     }
+
+    // ================= VISOR DE IMÁGENES (zoom, arrastre y deslizar) =================
+    let viewerImgs = [], viewerIdx = 0;
+    const vs = { scale: 1, x: 0, y: 0 };
+    const pointers = new Map();
+    let pinchStart = null, panStart = null, swipeStart = null, lastTap = 0;
+
+    function viewerApply(animate) {
+        const img = $('viewer-img');
+        img.style.transition = animate ? 'transform .2s ease' : 'none';
+        img.style.transform = `translate(${vs.x}px, ${vs.y}px) scale(${vs.scale})`;
+    }
+    function viewerReset() { vs.scale = 1; vs.x = 0; vs.y = 0; viewerApply(true); }
+    function viewerClamp() {
+        // Evita que la imagen ampliada se salga por completo de la pantalla
+        const img = $('viewer-img');
+        const maxX = Math.max(0, (img.clientWidth * vs.scale - innerWidth) / 2);
+        const maxY = Math.max(0, (img.clientHeight * vs.scale - innerHeight) / 2);
+        vs.x = Math.min(maxX, Math.max(-maxX, vs.x));
+        vs.y = Math.min(maxY, Math.max(-maxY, vs.y));
+    }
+    function viewerZoom(factor, cx = innerWidth / 2, cy = innerHeight / 2) {
+        const next = Math.min(5, Math.max(1, vs.scale * factor));
+        const k = next / vs.scale;
+        // Mantiene fijo el punto bajo el dedo / cursor
+        vs.x = (vs.x - (cx - innerWidth / 2)) * k + (cx - innerWidth / 2);
+        vs.y = (vs.y - (cy - innerHeight / 2)) * k + (cy - innerHeight / 2);
+        vs.scale = next;
+        if (vs.scale === 1) { vs.x = 0; vs.y = 0; }
+        viewerClamp(); viewerApply(true);
+    }
+    function viewerShow() {
+        $('viewer-img').src = viewerImgs[viewerIdx];
+        $('viewer-count').innerText = viewerImgs.length > 1 ? `${viewerIdx + 1} / ${viewerImgs.length}` : '';
+        $('viewer-prev').classList.toggle('hidden', viewerImgs.length < 2);
+        $('viewer-next').classList.toggle('hidden', viewerImgs.length < 2);
+        vs.scale = 1; vs.x = 0; vs.y = 0; viewerApply(false);
+    }
+    function openViewer(i) {
+        if (!viewerImgs.length) return;
+        viewerIdx = i || 0; viewerShow();
+        $('viewer').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeViewer() {
+        $('viewer').classList.add('hidden');
+        document.body.style.overflow = '';
+        $('l-img').src = viewerImgs[viewerIdx]; // la ficha muestra la última foto vista
+    }
+    function viewerGo(d) {
+        if (viewerImgs.length < 2) return;
+        viewerIdx = (viewerIdx + d + viewerImgs.length) % viewerImgs.length;
+        viewerShow();
+    }
+
+    (function initViewer() {
+        const el = $('viewer');
+        el.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('button')) return;
+            el.setPointerCapture(e.pointerId);
+            pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (pointers.size === 2) {
+                const [a, b] = [...pointers.values()];
+                pinchStart = { dist: Math.hypot(a.x - b.x, a.y - b.y), scale: vs.scale, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+                panStart = swipeStart = null;
+            } else if (pointers.size === 1) {
+                // Doble toque: alterna entre 1x y 2.5x
+                const now = Date.now();
+                if (now - lastTap < 300) { vs.scale > 1 ? viewerReset() : viewerZoom(2.5, e.clientX, e.clientY); lastTap = 0; return; }
+                lastTap = now;
+                if (vs.scale > 1) panStart = { x: e.clientX - vs.x, y: e.clientY - vs.y };
+                else swipeStart = { x: e.clientX, y: e.clientY };
+            }
+        });
+        el.addEventListener('pointermove', (e) => {
+            if (!pointers.has(e.pointerId)) return;
+            pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            if (pinchStart && pointers.size === 2) {
+                const [a, b] = [...pointers.values()];
+                const target = pinchStart.scale * Math.hypot(a.x - b.x, a.y - b.y) / pinchStart.dist;
+                viewerZoom(target / vs.scale, pinchStart.cx, pinchStart.cy);
+                viewerApply(false);
+            } else if (panStart) {
+                vs.x = e.clientX - panStart.x; vs.y = e.clientY - panStart.y;
+                viewerClamp(); viewerApply(false);
+            }
+        });
+        const end = (e) => {
+            if (swipeStart && pointers.size === 1) {
+                const dx = e.clientX - swipeStart.x, dy = e.clientY - swipeStart.y;
+                if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) viewerGo(dx < 0 ? 1 : -1);
+                else if (dy > 90 && Math.abs(dy) > Math.abs(dx)) closeViewer(); // deslizar hacia abajo cierra
+            }
+            pointers.delete(e.pointerId);
+            if (pointers.size < 2) pinchStart = null;
+            if (pointers.size === 0) { panStart = swipeStart = null; }
+        };
+        el.addEventListener('pointerup', end);
+        el.addEventListener('pointercancel', end);
+        // Rueda del mouse en computadora
+        el.addEventListener('wheel', (e) => { e.preventDefault(); viewerZoom(e.deltaY < 0 ? 1.2 : 1 / 1.2, e.clientX, e.clientY); }, { passive: false });
+        document.addEventListener('keydown', (e) => {
+            if (el.classList.contains('hidden')) return;
+            if (e.key === 'Escape') closeViewer();
+            if (e.key === 'ArrowRight') viewerGo(1);
+            if (e.key === 'ArrowLeft') viewerGo(-1);
+        });
+    })();
 
     function closeListing() {
         closeModal('modal-listing');
