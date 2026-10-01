@@ -640,7 +640,9 @@
     }
     async function setListing(id, status, admin_note = null) {
         const { error } = await _supabase.from('market_listings').update({ status, admin_note }).eq('id', id);
-        if (error) alert(error.message); loadMarketAdmin();
+        if (error) alert(error.message);
+        else if (status === 'aprobado') alert('Publicación aprobada. Ya se ve en Comunidad EV; la vista previa para WhatsApp estará lista en unos 15 minutos.');
+        loadMarketAdmin();
     }
     function rejectListing(id) {
         const note = prompt('Motivo del rechazo (lo verá el usuario):', '');

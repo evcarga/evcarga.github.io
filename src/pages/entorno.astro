@@ -508,7 +508,7 @@ import { PLACES } from '../lib/ecuador-places.js';
     });
 
     // ================= MARKETPLACE =================
-    const PUBLIC_COLS = 'id,kind,category,title,price,city,images,is_company,company_name,status,created_at';
+    const PUBLIC_COLS = 'id,kind,category,title,price,description,city,images,is_company,company_name,status,created_at';
     async function loadMarket() {
         const cols = currentUser ? '*' : PUBLIC_COLS;
         const { data, error } = await _supabase.from('market_listings').select(cols).eq('status', 'aprobado').order('created_at', { ascending: false });
@@ -545,7 +545,7 @@ import { PLACES } from '../lib/ecuador-places.js';
 
     async function showListing(id) {
         let l = listings.find(x => x.id === id);
-        if (!l || (currentUser && l.description === undefined)) {
+        if (!l || (currentUser && l.contact_phone === undefined)) {
             const { data } = await _supabase.from('market_listings').select(currentUser ? '*' : PUBLIC_COLS).eq('id', id).maybeSingle();
             if (!data) return alert('Esta publicación ya no está disponible.');
             l = data;
@@ -562,11 +562,12 @@ import { PLACES } from '../lib/ecuador-places.js';
         $('l-meta').innerText = [l.kind === 'servicio' ? 'Servicio' : 'Producto', l.category, l.city].filter(Boolean).join(' · ');
         const priv = $('l-private');
         if (!currentUser) {
-            priv.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-4 text-center">
-                <p class="text-sm text-slate-600 mb-2">🔒 Regístrate gratis para ver la descripción y el contacto del vendedor.</p>
+            priv.innerHTML = `<p class="text-sm text-slate-700 whitespace-pre-line">${escapeHtml(l.description || 'Sin descripción.')}</p>
+                <div class="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-4 text-center">
+                <p class="text-sm text-slate-600 mb-2">🔒 Regístrate gratis para ver el contacto del vendedor.</p>
                 <div class="flex gap-2 justify-center">
                     <button onclick="openModal('modal-register')" class="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm">Registrarme</button>
-                    <button onclick="requireLogin('Ingresa para ver la descripción y el contacto.')" class="bg-white border border-slate-300 px-4 py-2 rounded-lg font-bold text-sm">Ingresar</button>
+                    <button onclick="requireLogin('Ingresa para ver el contacto del vendedor.')" class="bg-white border border-slate-300 px-4 py-2 rounded-lg font-bold text-sm">Ingresar</button>
                 </div></div>`;
         } else {
             const phone = l.share_phone ? l.contact_phone : null;
@@ -697,7 +698,7 @@ import { PLACES } from '../lib/ecuador-places.js';
 
     async function shareListing() {
         const l = currentListing; if (!l) return;
-        const url = `${location.origin}/entorno.html?p=${l.id}`;
+        const url = `${location.origin}/p/${l.id}.html`; // página con imagen y descripción para WhatsApp
         const text = `${l.title} — ${l.price != null ? money(l.price) : 'A convenir'} | Marketplace EvCarga`;
         if (navigator.share) { try { await navigator.share({ title: l.title, text, url }); return; } catch (e) { /* cancelado */ } }
         try { await navigator.clipboard.writeText(url); alert('Enlace copiado: ' + url); }

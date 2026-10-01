@@ -1,5 +1,6 @@
 // Sitemap generado al construir: páginas principales + una por ciudad
 import { getCities } from '../lib/chargers.js';
+import { getApprovedListings } from '../lib/market.js';
 
 export async function GET() {
   const today = new Date().toISOString().slice(0, 10);
@@ -9,6 +10,7 @@ export async function GET() {
     { loc: `${base}/cargadores.html`, freq: 'daily', pri: '0.8' },
     { loc: `${base}/entorno.html`, freq: 'daily', pri: '0.8' },
     ...(await getCities()).map((c) => ({ loc: `${base}/cargadores/${c.slug}.html`, freq: 'weekly', pri: '0.7' })),
+    ...(await getApprovedListings()).map((l) => ({ loc: `${base}/p/${l.id}.html`, freq: 'weekly', pri: '0.5' })),
     { loc: `${base}/privacidad.html`, freq: 'yearly', pri: '0.3' },
   ];
   const body = urls

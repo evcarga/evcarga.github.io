@@ -1,0 +1,24 @@
+---
+// Página no encontrada. Si es una publicación recién aprobada (aún sin página), lleva a ella.
+---
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Página no encontrada | EvCarga</title>
+    <script is:inline>
+        const m = location.pathname.match(/^\/p\/(\d+)(\.html)?$/);
+        if (m) location.replace('/entorno.html?p=' + m[1]);
+    </script>
+    <script is:inline src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6 text-center">
+    <div>
+        <p class="text-5xl mb-3">🔌</p>
+        <h1 class="text-xl font-bold text-slate-800 mb-2">No encontramos esta página</h1>
+        <a href="/" class="inline-block bg-green-600 text-white px-5 py-2.5 rounded-lg font-bold">Ir al mapa de cargadores</a>
+    </div>
+</body>
+</html>
