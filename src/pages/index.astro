@@ -250,9 +250,17 @@ const cities = (await getCities()).slice(0, 18);
 
     <div class="container mx-auto -mt-6 px-4 mb-8 relative z-20">
         <div id="results-section" class="bg-white rounded-2xl p-6 shadow-xl border border-green-500">
-            <div class="flex items-center justify-between gap-2 mb-4 border-b border-slate-100 pb-4">
-                <div class="min-w-0"><h3 id="list-title" class="text-lg sm:text-xl font-bold text-slate-800 leading-tight break-words">Puntos Disponibles</h3><button id="btn-clear-search" onclick="clearSearch()" class="hidden text-xs font-semibold text-green-700 hover:underline">✕ Ver todos los puntos</button></div>
-                <span class="text-xs font-bold text-green-700 bg-green-50 px-3 py-1 rounded-full border border-green-100" id="count-chargers">Cargando...</span>
+            <div class="mb-4 border-b border-slate-100 pb-4 space-y-3">
+                <div class="flex items-baseline justify-between gap-2">
+                    <h3 id="list-title" class="text-lg sm:text-xl font-bold text-slate-800 leading-tight break-words">Disponibles</h3>
+                    <button id="btn-clear-search" onclick="clearSearch()" class="hidden text-xs font-semibold text-green-700 hover:underline shrink-0">✕ Ver todos</button>
+                </div>
+                <!-- Filtros: ciudad, potencia y tipo de conector -->
+                <div class="grid grid-cols-3 gap-2">
+                    <select id="f-city" onchange="filterChargers()" aria-label="Filtrar por ciudad" class="w-full min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-green-500"><option value="">Ciudad</option></select>
+                    <select id="f-power" onchange="filterChargers()" aria-label="Filtrar por potencia" class="w-full min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-green-500"><option value="">Potencia</option></select>
+                    <select id="f-type" onchange="filterChargers()" aria-label="Filtrar por tipo de conector" class="w-full min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-green-500"><option value="">Tipo</option></select>
+                </div>
             </div>
             
             <div id="chargers-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1050,7 +1058,7 @@ const cities = (await getCities()).slice(0, 18);
         if(error) { console.error(error); return; }
         chargersData = data || [];
         fillMapSearchOptions();
-        document.getElementById('count-chargers').innerText = `${chargersData.filter(c => c.status !== 'NO DISPONIBLE').length} activos`;
+        fillListFilters();
         applyFilter(); // respeta el filtro de ciudad (p. ej. al venir de /cargadores/<ciudad>.html)
         
         if(mainMap) {
@@ -1421,28 +1429,55 @@ const cities = (await getCities()).slice(0, 18);
         applyFilter();
     }
 
+    // Tipos de conector reconocidos en el texto de cada cargador
+    const CONNECTOR_TYPES = [
+        ['Tipo 1', /tipo\s*1|j1772|\bcs1\b/],
+        ['Tipo 2', /tipo\s*2/],
+        ['CCS2', /ccs\s*2|css\s*2|\bcs2\b/],
+        ['CHAdeMO', /chademo/],
+        ['GB/T', /gb\s*\/?\s*t/],
+        ['Tomacorriente', /tomacorriente|toma\s*1?[12]0\s*v|220\s*v|110\s*v/],
+    ];
+    const kwValues = (p) => [...String(p || '').matchAll(/(\d+(?:[.,]\d+)?)\s*kw/gi)].map(m => parseFloat(m[1].replace(',', '.')));
+
+    function fillListFilters() {
+        const keep = (id) => document.getElementById(id).value;
+        const prev = { city: keep('f-city'), power: keep('f-power'), type: keep('f-type') };
+        // Ciudades (agrupadas sin tildes ni mayúsculas), con cantidad
+        const cities = {};
+        chargersData.forEach(c => { const n = (c.city || '').trim(); if (!n) return; const k = normalize(n); (cities[k] ||= { name: n, count: 0 }).count++; });
+        const cityOpts = Object.entries(cities).sort((x, y) => x[1].name.localeCompare(y[1].name, 'es'));
+        document.getElementById('f-city').innerHTML = '<option value="">Ciudad</option>' + cityOpts.map(([k, v]) => `<option value="${escapeHtml(k)}">${escapeHtml(v.name)} (${v.count})</option>`).join('');
+        // Potencias que existen en los cargadores
+        const powers = [...new Set(chargersData.flatMap(c => kwValues(c.power)))].sort((x, y) => x - y);
+        document.getElementById('f-power').innerHTML = '<option value="">Potencia</option>' + powers.map(k => `<option value="${k}">${k} kW</option>`).join('');
+        // Tipos de conector presentes
+        const types = CONNECTOR_TYPES.filter(([, re]) => chargersData.some(c => re.test(normalize(c.charger_type))));
+        document.getElementById('f-type').innerHTML = '<option value="">Tipo</option>' + types.map(([n]) => `<option>${n}</option>`).join('');
+        document.getElementById('f-city').value = prev.city; document.getElementById('f-power').value = prev.power; document.getElementById('f-type').value = prev.type;
+    }
+
     function applyFilter() {
         const term = normalize(document.getElementById('city-search').value);
-        const filtered = term === ''
-            ? chargersData
-            : chargersData.filter(c =>
-                normalize(c.city).includes(term) ||
-                normalize(c.title).includes(term) ||
-                normalize(c.address).includes(term) ||
-                normalize(c.provincia).includes(term)
-              );
+        const fCity = document.getElementById('f-city').value;
+        const fPower = parseFloat(document.getElementById('f-power').value);
+        const fType = document.getElementById('f-type').value;
+        const typeRe = (CONNECTOR_TYPES.find(([n]) => n === fType) || [])[1];
+        const filtered = chargersData.filter(c =>
+            (!term || normalize(c.city).includes(term) || normalize(c.title).includes(term) || normalize(c.address).includes(term) || normalize(c.provincia).includes(term)) &&
+            (!fCity || normalize((c.city || '').trim()) === fCity) &&
+            (!fPower || kwValues(c.power).includes(fPower)) &&
+            (!typeRe || typeRe.test(normalize(c.charger_type)))
+        );
         renderChargers(filtered);
-        // Encabezado: resultados de la búsqueda o todos los puntos
+        // Encabezado: resultados de la búsqueda/filtros o todos los disponibles
         const raw = document.getElementById('city-search').value.trim();
-        const title = document.getElementById('list-title'), badge = document.getElementById('count-chargers');
-        if (term) {
-            title.innerText = `Resultados para "${raw}"`;
-            badge.innerText = `${filtered.length} ${filtered.length === 1 ? 'encontrado' : 'encontrados'}`;
-        } else {
-            title.innerText = 'Puntos Disponibles';
-            badge.innerText = `${chargersData.filter(c => c.status !== 'NO DISPONIBLE').length} activos`;
-        }
-        document.getElementById('btn-clear-search').classList.toggle('hidden', !term);
+        const active = term || fCity || fPower || fType;
+        const title = document.getElementById('list-title');
+        if (term) title.innerText = `Resultados para "${raw}" (${filtered.length})`;
+        else if (active) title.innerText = `Disponibles (${filtered.length})`;
+        else title.innerText = 'Disponibles';
+        document.getElementById('btn-clear-search').classList.toggle('hidden', !active);
     }
 
     // Buscar: filtra, cierra el teclado y baja hasta los resultados
@@ -1457,6 +1492,7 @@ const cities = (await getCities()).slice(0, 18);
 
     function clearSearch() {
         document.getElementById('city-search').value = '';
+        ['f-city', 'f-power', 'f-type'].forEach(id => document.getElementById(id).value = '');
         filterChargers();
     }
     
