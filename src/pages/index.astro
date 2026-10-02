@@ -1447,7 +1447,7 @@ const cities = (await getCities()).slice(0, 18);
         const cities = {};
         chargersData.forEach(c => { const n = (c.city || '').trim(); if (!n) return; const k = normalize(n); (cities[k] ||= { name: n, count: 0 }).count++; });
         const cityOpts = Object.entries(cities).sort((x, y) => x[1].name.localeCompare(y[1].name, 'es'));
-        document.getElementById('f-city').innerHTML = '<option value="">Ciudad</option>' + cityOpts.map(([k, v]) => `<option value="${escapeHtml(k)}">${escapeHtml(v.name)} (${v.count})</option>`).join('');
+        document.getElementById('f-city').innerHTML = '<option value="">Ciudad</option>' + cityOpts.map(([k, v]) => `<option value="${escapeHtml(k)}">${escapeHtml(v.name)}</option>`).join('');
         // Potencias que existen en los cargadores
         const powers = [...new Set(chargersData.flatMap(c => kwValues(c.power)))].sort((x, y) => x - y);
         document.getElementById('f-power').innerHTML = '<option value="">Potencia</option>' + powers.map(k => `<option value="${k}">${k} kW</option>`).join('');
