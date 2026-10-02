@@ -1439,10 +1439,9 @@ const cities = (await getCities()).slice(0, 18);
         ['Tomacorriente', /tomacorriente|toma\s*1?[12]0\s*v|220\s*v|110\s*v/],
     ];
     const kwValues = (p) => [...String(p || '').matchAll(/(\d+(?:[.,]\d+)?)\s*kw/gi)].map(m => parseFloat(m[1].replace(',', '.')));
-    // Rangos de potencia: valores cercanos se agrupan (ej. 7, 7.4 y 7.7 -> "7 kW"; 1.5 y 1.8 -> "1.5 kW")
+    // Rangos de potencia: 1.5 (1.5–1.8), 3.5, 7 (7–7.7), 15 (15–22), 50 (40–60), 90 (90 y más, ej. 200)
     const POWER_BUCKETS = [
-        ['1.5', 0, 2.5], ['3.5', 2.5, 5], ['7', 5, 9], ['11', 9, 13], ['15', 13, 18], ['22', 18, 30],
-        ['40', 30, 45], ['50', 45, 55], ['60', 55, 75], ['90', 75, 120], ['150', 120, 175], ['200', 175, Infinity],
+        ['1.5', 0, 2.5], ['3.5', 2.5, 5], ['7', 5, 9], ['15', 9, 30], ['50', 30, 75], ['90', 75, Infinity],
     ];
     const inBucket = (c, b) => kwValues(c.power).some(k => k >= b[1] && k < b[2]);
 
