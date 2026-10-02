@@ -403,7 +403,7 @@ const cities = (await getCities()).slice(0, 18);
     <div id="modal-offer" class="modal">
         <div class="bg-white p-4 sm:p-5 rounded-2xl w-full max-w-md mx-3 shadow-2xl max-h-[90vh] overflow-y-auto custom-scroll relative">
             <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
-                <h2 class="text-xl font-bold text-slate-800">Ofrecer Cargador</h2>
+                <h2 id="offer-modal-title" class="text-xl font-bold text-slate-800">Ofrecer Cargador</h2>
                 <button type="button" onclick="closeModal('modal-offer')" class="text-slate-400 hover:text-red-500 font-bold text-xl w-9 h-9 rounded-full hover:bg-slate-100 flex items-center justify-center transition" aria-label="Cerrar">✕</button>
             </div>
             <form id="form-offer" class="space-y-2.5">
@@ -1195,6 +1195,7 @@ const cities = (await getCities()).slice(0, 18);
     async function loadMyChargers() {
         if(!currentUser) return;
         const { data } = await _supabase.from('chargers').select('*').eq('user_id', currentUser.id);
+        myChargersData = data || [];
         const container = document.getElementById('my-chargers-container');
         container.innerHTML = '';
         
@@ -1242,8 +1243,54 @@ const cities = (await getCities()).slice(0, 18);
                     </div>
                 `;
             }
+            item.insertAdjacentHTML('beforeend', `<button onclick="editMyCharger(${c.id})" class="mt-3 w-full bg-white border border-slate-300 text-slate-700 text-xs py-2 rounded-lg font-bold hover:bg-slate-50 transition">✏️ Editar información</button>`);
             container.appendChild(item);
         });
+    }
+
+    // ================= EDITAR MIS CARGADORES =================
+    let myChargersData = [], editingChargerId = null;
+
+    // Selecciona un valor en un <select>; si no existe entre las opciones, lo agrega
+    function setSelectValue(id, value) {
+        const sel = document.getElementById(id);
+        if (!value) return;
+        if (![...sel.options].some(o => o.value === value)) sel.add(new Option(value, value));
+        sel.value = value;
+    }
+
+    function setOfferMode(editing) {
+        document.getElementById('offer-modal-title').innerText = editing ? 'Editar cargador' : 'Ofrecer Cargador';
+        document.getElementById('btn-offer-submit').innerText = editing ? 'GUARDAR CAMBIOS' : 'PUBLICAR CARGADOR';
+    }
+
+    function editMyCharger(id) {
+        const c = myChargersData.find(x => x.id === id);
+        if (!c) return;
+        editingChargerId = id;
+        const setVal = (fid, v) => { document.getElementById(fid).value = v ?? ''; };
+        setVal('offer-title', c.title); setVal('offer-city', c.city); setVal('offer-address', c.address);
+        setSelectValue('offer-type', c.charger_type); setSelectValue('offer-power', c.power);
+        setSelectValue('offer-parking-type', c.parking_type);
+        setVal('offer-price-kwh', c.price_kwh); setVal('offer-price-parking', c.price_parking);
+        setVal('offer-schedule', c.schedule); setVal('offer-link', c.link);
+        setVal('offer-lat', c.lat); setVal('offer-lng', c.lng);
+        if (c.lat && c.lng) {
+            document.getElementById('location-status').innerHTML = `<span class="text-green-600 font-bold flex justify-center items-center gap-1">✓ Ubicación actual (puedes cambiarla)</span>`;
+            showOfferPreviewMap(c.lat, c.lng);
+        }
+        document.getElementById('offer-phone-wrap').classList.add('hidden');
+        setOfferMode(true);
+        closeModal('modal-my-chargers');
+        openModal('modal-offer');
+    }
+
+    function resetOfferForm() {
+        editingChargerId = null;
+        setOfferMode(false);
+        document.getElementById('form-offer').reset();
+        document.getElementById('location-status').innerText = 'Coordenadas pendientes...';
+        document.getElementById('offer-preview-map').style.display = 'none';
     }
 
     async function setStatus(id, status) {
@@ -1270,6 +1317,7 @@ const cities = (await getCities()).slice(0, 18);
             openModal('modal-register');
             return;
         }
+        if (editingChargerId) resetOfferForm();
         document.getElementById('offer-phone-wrap').classList.toggle('hidden', !!currentProfile?.phone);
         openModal('modal-offer');
     }
@@ -1311,7 +1359,7 @@ const cities = (await getCities()).slice(0, 18);
         if(!currentUser) return startOffer();
 
         // Quien ofrece un cargador debe dejar un celular de contacto
-        if (!currentProfile?.phone) {
+        if (!editingChargerId && !currentProfile?.phone) {
             const phone = document.getElementById('offer-phone').value.trim();
             if (!/^\+?\d{9,15}$/.test(phone.replace(/[\s-]/g, ''))) return alert('Escribe tu número celular de contacto');
             const { error: pErr } = await _supabase.from('profiles').update({ phone }).eq('id', currentUser.id);
@@ -1324,16 +1372,16 @@ const cities = (await getCities()).slice(0, 18);
         if(!lat || !lng) return alert("⚠️ Falta la ubicación. Usa el mapa.");
 
         const btn = document.getElementById('btn-offer-submit');
-        btn.disabled = true; btn.innerText = 'Publicando...';
+        btn.disabled = true; btn.innerText = editingChargerId ? 'Guardando...' : 'Publicando...';
 
         const priceKwh = document.getElementById('offer-price-kwh').value;
         const priceParking = document.getElementById('offer-price-parking').value;
 
-        const { error } = await _supabase.from('chargers').insert([{
-            user_id: currentUser.id,
+        const editing = myChargersData.find(x => x.id === editingChargerId);
+        const payload = {
             title: document.getElementById('offer-title').value.trim(),
             city: document.getElementById('offer-city').value.trim(),
-            provincia: provinceForCity(document.getElementById('offer-city').value.trim()),
+            provincia: provinceForCity(document.getElementById('offer-city').value.trim()) ?? editing?.provincia ?? null,
             address: document.getElementById('offer-address').value.trim(),
             charger_type: document.getElementById('offer-type').value,
             power: document.getElementById('offer-power').value,
@@ -1344,17 +1392,19 @@ const cities = (await getCities()).slice(0, 18);
             link: document.getElementById('offer-link').value.trim() || null,
             lat: parseFloat(lat), 
             lng: parseFloat(lng)
-        }]);
+        };
+        // Editar: solo el dueño puede actualizar (lo controla Supabase con RLS)
+        const { error } = editingChargerId
+            ? await _supabase.from('chargers').update(payload).eq('id', editingChargerId)
+            : await _supabase.from('chargers').insert([{ ...payload, user_id: currentUser.id }]);
 
-        btn.disabled = false; btn.innerText = 'PUBLICAR CARGADOR';
+        btn.disabled = false; setOfferMode(!!editingChargerId);
 
         if(error) alert(error.message);
         else { 
-            alert("¡Cargador publicado!"); 
+            alert(editingChargerId ? "¡Cambios guardados!" : "¡Cargador publicado!"); 
             closeModal('modal-offer'); 
-            document.getElementById('form-offer').reset();
-            document.getElementById('location-status').innerText = 'Coordenadas pendientes...';
-            document.getElementById('offer-preview-map').style.display = 'none';
+            resetOfferForm();
             loadChargers(); 
         }
     }
