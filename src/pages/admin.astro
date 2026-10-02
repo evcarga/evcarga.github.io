@@ -40,7 +40,7 @@
         <p id="login-msg" class="text-sm text-slate-500 mb-6">Ingresa con una cuenta de administrador.</p>
         <form id="form-login" class="space-y-4">
             <input type="email" id="login-email" placeholder="Correo electrónico" class="field" required>
-            <input type="password" id="login-pin" placeholder="PIN (4 dígitos)" maxlength="4" class="field text-center tracking-[0.5em]" required>
+            <input type="password" id="login-pin" placeholder="PIN o contraseña" autocomplete="current-password" class="field" required>
             <button type="submit" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-black">Iniciar sesión</button>
         </form>
         <button onclick="loginWithGoogle()" class="mt-3 w-full bg-white border border-slate-300 py-3 rounded-lg font-bold hover:bg-slate-50">Continuar con Google</button>
@@ -295,9 +295,11 @@
     document.getElementById('form-login').addEventListener('submit', async (e) => {
         e.preventDefault();
         const pin = val('login-pin');
-        if (!/^\d{4}$/.test(pin)) return alert('El PIN debe tener 4 dígitos');
-        const { error } = await _supabase.auth.signInWithPassword({ email: val('login-email'), password: pin + PIN_SUFFIX });
-        if (error) alert('Correo o PIN incorrecto'); else init();
+        if (!pin) return alert('Escribe tu PIN o contraseña');
+        // 4 dígitos = PIN; cualquier otro texto = contraseña completa
+        const password = /^\d{4}$/.test(pin) ? pin + PIN_SUFFIX : pin;
+        const { error } = await _supabase.auth.signInWithPassword({ email: val('login-email'), password });
+        if (error) alert('Correo o PIN/contraseña incorrecto'); else init();
     });
 
     async function loginWithGoogle() {

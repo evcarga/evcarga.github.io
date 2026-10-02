@@ -387,7 +387,7 @@ const cities = (await getCities()).slice(0, 18);
             <h2 class="text-2xl font-bold mb-6 text-slate-800">Bienvenido</h2>
             <form id="form-login" class="space-y-4">
                 <input type="email" id="login-email" placeholder="Correo electrónico" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none" required>
-                <input type="password" id="login-pin" placeholder="PIN (4 dígitos)" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" maxlength="4" minlength="4">
+                <input type="password" id="login-pin" placeholder="PIN (4 dígitos)" class="w-full bg-slate-50 border border-slate-200 p-3 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none text-center tracking-[0.5em] text-xl" required inputmode="numeric" pattern="\d{4}" minlength="4">
                 <button type="submit" id="btn-login-submit" class="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-black transition shadow-lg">Iniciar Sesión</button>
             </form>
             <div class="flex items-center gap-3 my-4 text-xs text-slate-400"><span class="flex-1 h-px bg-slate-200"></span>o<span class="flex-1 h-px bg-slate-200"></span></div>
@@ -1459,11 +1459,12 @@ const cities = (await getCities()).slice(0, 18);
         e.preventDefault();
         const email = document.getElementById('login-email').value.trim();
         const pin = document.getElementById('login-pin').value.trim();
-        if(!/^\d{4}$/.test(pin)) return alert("El PIN debe tener exactamente 4 dígitos numéricos");
+        if(!pin) return alert("Escribe tu PIN de 4 dígitos");
 
         const btn = document.getElementById('btn-login-submit');
         btn.disabled = true; btn.innerText = 'Ingresando...';
-        const { error } = await _supabase.auth.signInWithPassword({ email: email, password: pinToPassword(pin) });
+        // 4 dígitos = PIN; cualquier otro texto = contraseña completa (p. ej. administrador)
+        const { error } = await _supabase.auth.signInWithPassword({ email: email, password: /^\d{4}$/.test(pin) ? pinToPassword(pin) : pin });
         btn.disabled = false; btn.innerText = 'Iniciar Sesión';
         if(error) alert("Correo o PIN incorrecto"); else { document.getElementById('form-login').reset(); closeModal('modal-login'); checkSession(); }
     });

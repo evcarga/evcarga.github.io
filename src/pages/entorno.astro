@@ -361,7 +361,7 @@ import { PLACES } from '../lib/ecuador-places.js';
             <p id="login-note" class="text-xs text-slate-500 mb-3">Ingresa para ver descripciones y contactos.</p>
             <form id="form-login" class="space-y-2.5">
                 <input type="email" id="login-email" placeholder="Correo electrónico" class="field" required>
-                <input type="password" id="login-pin" placeholder="PIN (4 dígitos)" class="field text-center tracking-[0.4em] placeholder:tracking-normal" required inputmode="numeric" maxlength="4">
+                <input type="password" id="login-pin" placeholder="PIN (4 dígitos)" class="field text-center tracking-[0.4em] placeholder:tracking-normal" required inputmode="numeric">
                 <button type="submit" class="w-full bg-slate-900 text-white py-2.5 rounded-lg font-bold hover:bg-black">Iniciar sesión</button>
             </form>
             <button type="button" onclick="loginWithGoogle()" class="mt-2.5 w-full bg-white border border-slate-300 py-2.5 rounded-lg font-bold hover:bg-slate-50">Continuar con Google</button>
@@ -465,8 +465,9 @@ import { PLACES } from '../lib/ecuador-places.js';
     $('form-login').addEventListener('submit', async (e) => {
         e.preventDefault();
         const pin = $('login-pin').value.trim();
-        if (!/^\d{4}$/.test(pin)) return alert('El PIN debe tener 4 dígitos');
-        const { error } = await _supabase.auth.signInWithPassword({ email: $('login-email').value.trim(), password: pin + PIN_SUFFIX });
+        if (!pin) return alert('Escribe tu PIN de 4 dígitos');
+        // 4 dígitos = PIN; cualquier otro texto = contraseña completa (p. ej. administrador)
+        const { error } = await _supabase.auth.signInWithPassword({ email: $('login-email').value.trim(), password: /^\d{4}$/.test(pin) ? pin + PIN_SUFFIX : pin });
         if (error) return alert('Correo o PIN incorrecto');
         closeModal('modal-login'); $('form-login').reset();
         await initSession();
