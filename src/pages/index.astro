@@ -1439,6 +1439,12 @@ const cities = (await getCities()).slice(0, 18);
         ['Tomacorriente', /tomacorriente|toma\s*1?[12]0\s*v|220\s*v|110\s*v/],
     ];
     const kwValues = (p) => [...String(p || '').matchAll(/(\d+(?:[.,]\d+)?)\s*kw/gi)].map(m => parseFloat(m[1].replace(',', '.')));
+    // Rangos de potencia: valores cercanos se agrupan (ej. 7, 7.4 y 7.7 -> "7 kW"; 1.5 y 1.8 -> "1.5 kW")
+    const POWER_BUCKETS = [
+        ['1.5', 0, 2.5], ['3.5', 2.5, 5], ['7', 5, 9], ['11', 9, 13], ['15', 13, 18], ['22', 18, 30],
+        ['40', 30, 45], ['50', 45, 55], ['60', 55, 75], ['90', 75, 120], ['150', 120, 175], ['200', 175, Infinity],
+    ];
+    const inBucket = (c, b) => kwValues(c.power).some(k => k >= b[1] && k < b[2]);
 
     function fillListFilters() {
         const keep = (id) => document.getElementById(id).value;
@@ -1449,8 +1455,8 @@ const cities = (await getCities()).slice(0, 18);
         const cityOpts = Object.entries(cities).sort((x, y) => x[1].name.localeCompare(y[1].name, 'es'));
         document.getElementById('f-city').innerHTML = '<option value="">Ciudad</option>' + cityOpts.map(([k, v]) => `<option value="${escapeHtml(k)}">${escapeHtml(v.name)}</option>`).join('');
         // Potencias que existen en los cargadores
-        const powers = [...new Set(chargersData.flatMap(c => kwValues(c.power)))].sort((x, y) => x - y);
-        document.getElementById('f-power').innerHTML = '<option value="">Potencia</option>' + powers.map(k => `<option value="${k}">${k} kW</option>`).join('');
+        const buckets = POWER_BUCKETS.filter(b => chargersData.some(c => inBucket(c, b)));
+        document.getElementById('f-power').innerHTML = '<option value="">Potencia</option>' + buckets.map(b => `<option value="${b[0]}">${b[0]} kW</option>`).join('');
         // Tipos de conector presentes
         const types = CONNECTOR_TYPES.filter(([, re]) => chargersData.some(c => re.test(normalize(c.charger_type))));
         document.getElementById('f-type').innerHTML = '<option value="">Tipo</option>' + types.map(([n]) => `<option>${n}</option>`).join('');
@@ -1460,13 +1466,13 @@ const cities = (await getCities()).slice(0, 18);
     function applyFilter() {
         const term = normalize(document.getElementById('city-search').value);
         const fCity = document.getElementById('f-city').value;
-        const fPower = parseFloat(document.getElementById('f-power').value);
+        const fPower = POWER_BUCKETS.find(b => b[0] === document.getElementById('f-power').value);
         const fType = document.getElementById('f-type').value;
         const typeRe = (CONNECTOR_TYPES.find(([n]) => n === fType) || [])[1];
         const filtered = chargersData.filter(c =>
             (!term || normalize(c.city).includes(term) || normalize(c.title).includes(term) || normalize(c.address).includes(term) || normalize(c.provincia).includes(term)) &&
             (!fCity || normalize((c.city || '').trim()) === fCity) &&
-            (!fPower || kwValues(c.power).includes(fPower)) &&
+            (!fPower || inBucket(c, fPower)) &&
             (!typeRe || typeRe.test(normalize(c.charger_type)))
         );
         renderChargers(filtered);
