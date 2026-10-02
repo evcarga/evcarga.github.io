@@ -515,6 +515,8 @@ import { PLACES } from '../lib/ecuador-places.js';
         const { data, error } = await _supabase.from('market_listings').select(cols).eq('status', 'aprobado').order('created_at', { ascending: false });
         if (error) { $('m-list').innerHTML = `<p class="col-span-full text-sm text-red-600">No se pudo cargar el marketplace.</p>`; return console.error(error); }
         listings = data || [];
+        // Orden aleatorio en cada visita (Fisher-Yates), para no favorecer las más recientes
+        for (let i = listings.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [listings[i], listings[j]] = [listings[j], listings[i]]; }
         const cats = [...new Set(listings.map(l => l.category))].sort();
         const sel = $('m-cat'), cur = sel.value;
         sel.innerHTML = '<option value="">Todas las categorías</option>' + cats.map(c => `<option ${c === cur ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
