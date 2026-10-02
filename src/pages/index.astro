@@ -466,7 +466,7 @@ const cities = (await getCities()).slice(0, 18);
 
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-0.5">Tipo Parqueadero</label>
-                    <select id="offer-parking-type" class="w-full border border-slate-200 px-3 py-2 text-sm rounded-lg bg-white"><option>Cubierto</option><option>Cubierto (Reja)</option><option>Intemperie</option><option>Intemperie (Reja)</option></select>
+                    <select id="offer-parking-type" class="w-full border border-slate-200 px-3 py-2 text-sm rounded-lg bg-white"><option value="">No especificado</option><option>Cubierto</option><option>Cubierto (Reja)</option><option>Intemperie</option><option>Intemperie (Reja)</option></select>
                 </div>
 
                 <div>
@@ -1272,6 +1272,7 @@ const cities = (await getCities()).slice(0, 18);
         setVal('offer-title', c.title); setVal('offer-city', c.city); setVal('offer-address', c.address);
         setSelectValue('offer-type', c.charger_type); setSelectValue('offer-power', c.power);
         setSelectValue('offer-parking-type', c.parking_type);
+        if (!c.parking_type) document.getElementById('offer-parking-type').value = '';
         setVal('offer-price-kwh', c.price_kwh); setVal('offer-price-parking', c.price_parking);
         setVal('offer-schedule', c.schedule); setVal('offer-link', c.link);
         setVal('offer-lat', c.lat); setVal('offer-lng', c.lng);
@@ -1387,7 +1388,7 @@ const cities = (await getCities()).slice(0, 18);
             power: document.getElementById('offer-power').value,
             price_kwh: priceKwh === '' ? null : priceKwh,
             price_parking: priceParking === '' ? null : priceParking,
-            parking_type: document.getElementById('offer-parking-type').value,
+            parking_type: document.getElementById('offer-parking-type').value || null,
             schedule: document.getElementById('offer-schedule').value.trim(),
             link: document.getElementById('offer-link').value.trim() || null,
             lat: parseFloat(lat), 
