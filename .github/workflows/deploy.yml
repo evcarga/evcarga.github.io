@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: '*/15 * * * *' # cada 15 min: páginas de publicaciones aprobadas (vista previa en WhatsApp) y de ciudades
+    - cron: '*/15 * * * *' # respaldo (GitHub puede retrasarlo); el admin regenera al aprobar publicaciones
   workflow_dispatch:
 
 permissions:

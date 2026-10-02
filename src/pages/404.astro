@@ -7,7 +7,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
-    <title>Página no encontrada | EvCarga</title>
+    <title>Marketplace EvCarga Ecuador</title>
+    <!-- Vista previa genérica si se comparte una publicación antes de generar su página -->
+    <meta property="og:site_name" content="EvCarga Ecuador">
+    <meta property="og:title" content="Publicación en el Marketplace EvCarga">
+    <meta property="og:description" content="Productos y servicios para autos eléctricos en Ecuador. Toca para ver la publicación.">
+    <meta property="og:image" content="https://evcarga.github.io/favicon-512.png">
     <script is:inline>
         const m = location.pathname.match(/^\/p\/(\d+)(\.html)?$/);
         if (m) location.replace('/entorno.html?p=' + m[1]);

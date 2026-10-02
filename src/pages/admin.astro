@@ -638,10 +638,21 @@
                 </div>
             </div>`).join('') || '<p class="text-sm text-slate-400 text-center py-6 md:col-span-2">No hay publicaciones.</p>';
     }
+    // Regenera el sitio para que la página /p/<id>.html (vista previa en WhatsApp) exista en ~2 minutos
+    async function rebuildSite() {
+        const { data: { session } } = await _supabase.auth.getSession();
+        try {
+            await fetch(`${SUPABASE_URL}/functions/v1/rebuild-site`, {
+                method: 'POST',
+                headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${session?.access_token}` }
+            });
+        } catch (e) { console.error('No se pudo regenerar el sitio', e); }
+    }
+
     async function setListing(id, status, admin_note = null) {
         const { error } = await _supabase.from('market_listings').update({ status, admin_note }).eq('id', id);
         if (error) alert(error.message);
-        else if (status === 'aprobado') alert('Publicación aprobada. Ya se ve en Comunidad EV; la vista previa para WhatsApp estará lista en unos 15 minutos.');
+        else if (status === 'aprobado') { rebuildSite(); alert('Publicación aprobada. Ya se ve en Comunidad EV; el enlace para compartir con imagen estará listo en unos 2 minutos.'); }
         loadMarketAdmin();
     }
     function rejectListing(id) {
@@ -655,7 +666,8 @@
         const paths = (l?.images || []).map(u => u.split('/storage/v1/object/public/market/')[1]).filter(Boolean);
         if (paths.length) await _supabase.storage.from('market').remove(paths);
         const { error } = await _supabase.from('market_listings').delete().eq('id', id);
-        if (error) alert(error.message); loadMarketAdmin();
+        if (error) alert(error.message); else if (l?.status === 'aprobado') rebuildSite();
+        loadMarketAdmin();
     }
     function openListingForm(id) {
         const l = marketItems.find(x => x.id === id);
@@ -676,6 +688,7 @@
         };
         const { error } = await _supabase.from('market_listings').update(payload).eq('id', val('l-id'));
         if (error) return alert(error.message);
+        if (payload.status === 'aprobado') rebuildSite();
         closeModal('modal-listing'); loadMarketAdmin();
     });
 
