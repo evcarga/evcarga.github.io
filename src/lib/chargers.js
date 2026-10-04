@@ -16,7 +16,7 @@ export function slugify(str) {
 let cache = null;
 export async function getChargers() {
   if (cache) return cache;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/chargers?select=id,title,city,provincia,address,charger_type,power,price_kwh,price_parking,parking_type,schedule,lat,lng,link,status&order=title`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/chargers?select=id,title,city,provincia,address,charger_type,power,price_kwh,price_parking,parking_type,schedule,lat,lng,link,status&country=eq.EC&order=title`, {
     // La base solo acepta peticiones con el origen del sitio
     headers: { apikey: SUPABASE_KEY, Origin: 'https://evcarga.github.io' },
   });

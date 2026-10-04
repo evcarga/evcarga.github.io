@@ -68,6 +68,9 @@
         <section id="tab-chargers" class="tab bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
             <div class="flex flex-col sm:flex-row gap-2 mb-4">
                 <input id="charger-search" oninput="renderChargers()" placeholder="Buscar por título, ciudad, dirección o dueño" class="field flex-grow">
+                <select id="charger-country-filter" onchange="renderChargers()" class="field sm:w-40">
+                    <option value="">Todos los países</option><option value="EC">🇪🇨 Ecuador</option><option value="CO">🇨🇴 Colombia</option>
+                </select>
                 <select id="charger-status-filter" onchange="renderChargers()" class="field sm:w-48">
                     <option value="">Todos los estados</option><option value="DISPONIBLE">Disponibles</option><option value="OCUPADO">Ocupados</option><option value="NO DISPONIBLE">No disponibles</option>
                 </select>
@@ -334,13 +337,14 @@
     function renderChargers() {
         const term = normalize(val('charger-search'));
         const st = val('charger-status-filter');
-        const list = chargers.filter(c => (!st || (c.status || 'DISPONIBLE') === st) &&
+        const ct = val('charger-country-filter');
+        const list = chargers.filter(c => (!st || (c.status || 'DISPONIBLE') === st) && (!ct || (c.country || 'EC') === ct) &&
             (!term || [c.title, c.city, c.address, c.provincia, c.profiles?.full_name].some(f => normalize(f).includes(term))));
         document.getElementById('chargers-body').innerHTML = list.map(c => `
             <tr class="border-b border-slate-50 hover:bg-slate-50">
                 <td class="p-2 text-slate-400">${c.id}</td>
                 <td class="p-2 font-semibold text-slate-800">${escapeHtml(c.title)}</td>
-                <td class="p-2">${escapeHtml(c.city)}</td>
+                <td class="p-2">${escapeHtml(c.city)}${c.country === 'CO' ? ' 🇨🇴' : ''}</td>
                 <td class="p-2">${escapeHtml(c.power)}</td>
                 <td class="p-2 text-xs">${escapeHtml(c.charger_type)}</td>
                 <td class="p-2"><select onchange="setChargerStatus(${c.id}, this.value)" title="Cambiar estado" class="text-[10px] font-extrabold px-1.5 py-1 rounded-full border-0 ${STATUS_STYLE[c.status] || STATUS_STYLE.DISPONIBLE}">

@@ -261,6 +261,9 @@ const cities = (await getCities()).slice(0, 18);
                     <select id="f-power" onchange="filterChargers()" aria-label="Filtrar por potencia" class="w-full min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-green-500"><option value="">Potencia</option></select>
                     <select id="f-type" onchange="filterChargers()" aria-label="Filtrar por tipo de conector" class="w-full min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-green-500"><option value="">Tipo</option></select>
                 </div>
+                <label class="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+                    <input type="checkbox" class="toggle-colombia w-4 h-4" onchange="setIncludeColombia(this.checked)"> 🇨🇴 Incluir cargadores de Colombia
+                </label>
             </div>
             
             <div id="chargers-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -343,6 +346,9 @@ const cities = (await getCities()).slice(0, 18);
                     <button type="submit" class="bg-green-600 text-white px-3 rounded-lg text-sm font-bold hover:bg-green-700 shrink-0">Ir</button>
                 </form>
                 <datalist id="map-search-options"></datalist>
+                <label class="flex items-center gap-1.5 mt-1.5 px-1 text-[11px] text-slate-600 cursor-pointer select-none">
+                    <input type="checkbox" class="toggle-colombia w-3.5 h-3.5" onchange="setIncludeColombia(this.checked)"> 🇨🇴 Incluir Colombia
+                </label>
                 <div class="flex gap-3 mt-1.5 text-[10px] text-slate-500 px-1">
                     <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-green-600"></span>Disponible</span>
                     <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>Carga rápida (50+ kW)</span>
@@ -832,8 +838,14 @@ const cities = (await getCities()).slice(0, 18);
 
     async function searchMap() {
         const raw = document.getElementById('map-search').value.trim();
-        const term = normalize(raw);
+        if (!includeColombia && wantsColombia(raw)) setIncludeColombia(true, true);
+        const term = normalize(raw).replace(/\bcolombia\b/, '').trim() || (normalize(raw).includes('colombia') ? 'colombia' : '');
         if (!term || !mainMap) return;
+        if (term === 'colombia') { // vista general de Colombia
+            const pts = allChargers.filter(c => c.country === 'CO' && c.lat && c.lng);
+            if (pts.length) mainMap.flyToBounds(L.latLngBounds(pts.map(c => [c.lat, c.lng])).pad(0.1), { duration: 1 });
+            return;
+        }
         // evita repetir la misma búsqueda (input + change + submit)
         if (searchMap.last === term && Date.now() - searchMap.at < 1500) return;
         searchMap.last = term; searchMap.at = Date.now();
@@ -885,6 +897,7 @@ const cities = (await getCities()).slice(0, 18);
         m.bindPopup(`
             <div class="text-center" style="width: 190px;">
                 <h3 class="font-bold text-slate-800 text-sm leading-tight">${escapeHtml(c.title)}</h3>
+                ${c.country === 'CO' ? `<p class="text-[10px] text-slate-500">🇨🇴 ${escapeHtml(c.city || '')}, Colombia</p>` : ''}
                 <p class="text-[10px] font-bold ${statusColor} uppercase tracking-wide mt-0.5">${statusText}${fast && !isDown ? ' · <span class="text-blue-600">⚡ Carga rápida</span>' : ''}</p>
                 <div class="text-left text-[11px] bg-slate-50 px-2 py-1.5 rounded-lg border border-slate-200 text-slate-600 mt-1.5 space-y-0.5">
                     <p>⚡ ${escapeHtml(c.power)} · ${escapeHtml(c.charger_type)}</p>
@@ -1053,20 +1066,43 @@ const cities = (await getCities()).slice(0, 18);
     // ================= DATOS (CARGADORES) =================
     async function loadChargers() {
         // Los visitantes sin sesión no tienen acceso al teléfono (restringido en Supabase)
-        const cols = 'id,user_id,title,city,address,charger_type,power,price_kwh,price_parking,parking_type,schedule,lat,lng,status,occupied_until,created_at,link,provincia,region,requires_app,community_only';
+        const cols = 'id,user_id,title,city,address,charger_type,power,price_kwh,price_parking,parking_type,schedule,lat,lng,status,occupied_until,created_at,link,provincia,region,requires_app,community_only,country';
         const { data, error } = await _supabase.from('chargers').select(currentUser ? `${cols},contact_phone,profiles(full_name, phone)` : cols);
         if(error) { console.error(error); return; }
-        chargersData = data || [];
+        allChargers = data || [];
+        applyCountryScope();
+    }
+
+    // ================= PAÍS: Colombia solo si la persona lo pide =================
+    let allChargers = [], includeColombia = false, colombiaAuto = false;
+
+    function applyCountryScope() {
+        chargersData = includeColombia ? allChargers : allChargers.filter(c => c.country !== 'CO');
+        document.querySelectorAll('.toggle-colombia').forEach(el => el.checked = includeColombia);
         fillMapSearchOptions();
         fillListFilters();
         applyFilter(); // respeta el filtro de ciudad (p. ej. al venir de /cargadores/<ciudad>.html)
-        
         if(mainMap) {
             mainMap.eachLayer((layer) => { 
                 if(layer instanceof L.Marker && layer !== userLocationMarker) mainMap.removeLayer(layer); 
             });
             chargersData.forEach(c => addPinToMainMap(c));
         }
+    }
+
+    function setIncludeColombia(on, auto = false) {
+        if (includeColombia === on) return;
+        includeColombia = on; colombiaAuto = on && auto;
+        applyCountryScope();
+    }
+
+    // Activa Colombia si se busca "Colombia" o una ciudad/departamento colombiano
+    function wantsColombia(text) {
+        const q = normalize(text).trim();
+        if (!q) return false;
+        if (q.includes('colombia')) return true;
+        if (q.length < 4) return false;
+        return allChargers.some(c => c.country === 'CO' && (normalize(c.city) === q || normalize(c.provincia) === q));
     }
 
     function renderChargers(list) {
@@ -1111,7 +1147,7 @@ const cities = (await getCities()).slice(0, 18);
                     </div>
                     <div class="flex items-center text-slate-500 text-xs mb-4">
                         <span class="mr-1">📍</span> 
-                        <span class="truncate font-medium">${escapeHtml(c.city)}</span>
+                        <span class="truncate font-medium">${escapeHtml(c.city)}${c.country === 'CO' ? ' · 🇨🇴 Colombia' : ''}</span>
                     </div>
                     
                     <div class="grid grid-cols-2 gap-2 mb-0">
@@ -1463,7 +1499,9 @@ const cities = (await getCities()).slice(0, 18);
     }
 
     function applyFilter() {
-        const term = normalize(document.getElementById('city-search').value);
+        const rawTerm = document.getElementById('city-search').value;
+        if (!includeColombia && wantsColombia(rawTerm)) { setIncludeColombia(true, true); return; }
+        const term = normalize(rawTerm).replace(/\bcolombia\b/, '').trim();
         const fCity = document.getElementById('f-city').value;
         const fPower = POWER_BUCKETS.find(b => b[0] === document.getElementById('f-power').value);
         const fType = document.getElementById('f-type').value;
@@ -1497,6 +1535,7 @@ const cities = (await getCities()).slice(0, 18);
 
     function clearSearch() {
         document.getElementById('city-search').value = '';
+        if (colombiaAuto) { includeColombia = false; colombiaAuto = false; applyCountryScope(); }
         ['f-city', 'f-power', 'f-type'].forEach(id => document.getElementById(id).value = '');
         filterChargers();
     }
