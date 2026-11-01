@@ -756,6 +756,12 @@ const cities = (await getCities()).slice(0, 18);
         return String(str).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
     }
 
+    // Enlace de Google Maps de un cargador: el que tiene guardado o, si no, sus coordenadas. Solo http(s).
+    function mapsUrlFor(c) {
+        if (c.link && /^https?:\/\//i.test(c.link.trim())) return c.link.trim();
+        return (c.lat && c.lng) ? `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}` : null;
+    }
+
     function formatPrice(value, suffix) {
         if (value === null || value === undefined || value === '' || isNaN(parseFloat(value))) return 'N/D';
         return `$${parseFloat(value).toFixed(2)}${suffix || ''}`;
@@ -879,7 +885,7 @@ const cities = (await getCities()).slice(0, 18);
         const statusColor = (isOccupied || isDown) ? 'text-red-600' : 'text-green-600';
         const statusText = isDown ? '⛔ NO SIRVE POR EL MOMENTO' : isOccupied ? 'OCUPADO' : 'DISPONIBLE';
 
-        const mapsUrl = c.link ? c.link : `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}`;
+        const mapsUrl = mapsUrlFor(c);
 
         const phone = c.contact_phone || (c.profiles?.role !== 'admin' ? c.profiles?.phone : null);
         const waNumber = phone ? phone.replace(/\D/g, '').replace(/^0/, '593') : '';
@@ -904,7 +910,7 @@ const cities = (await getCities()).slice(0, 18);
                     <p>💰 ${formatPrice(c.price_kwh, '/kWh')}${c.price_parking ? ` · 🅿️ ${formatPrice(c.price_parking, '/h')}` : ''}</p>
                     ${c.schedule ? `<p>🕒 ${escapeHtml(c.schedule)}</p>` : ''}
                 </div>
-                <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" class="mt-1.5 w-full block bg-blue-600 hover:bg-blue-700 !text-white font-semibold text-[11px] py-1.5 rounded-lg">📍 Cómo llegar</a>
+                <a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" class="mt-1.5 w-full block bg-blue-600 hover:bg-blue-700 !text-white font-semibold text-[11px] py-1.5 rounded-lg">📍 Ir con Google Maps</a>
                 ${contactHTML}
                 <button onclick="openReport(${c.id})" class="mt-1.5 w-full text-[10px] text-amber-700 hover:underline">⚠️ Reportar novedad</button>
             </div>
@@ -1160,6 +1166,7 @@ const cities = (await getCities()).slice(0, 18);
                             <p class="font-bold text-slate-700 text-sm truncate" title="${escapeHtml(c.power || 'No especificada')}">${escapeHtml(c.power || 'N/D')}</p>
                         </div>
                     </div>
+                    ${mapsUrlFor(c) ? `<a href="${escapeHtml(mapsUrlFor(c))}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="mt-3 w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 !text-white font-semibold text-xs py-2 rounded-lg transition shadow-sm">📍 Ir con Google Maps</a>` : ''}
                 </div>
                 <div class="bg-slate-50 px-3 py-2 border-t border-slate-100 flex justify-between items-center">
                     <span class="text-xs font-bold text-slate-400 group-hover:text-green-600 transition">Ver detalles →</span>
@@ -1211,11 +1218,11 @@ const cities = (await getCities()).slice(0, 18);
                 ? `<p class="text-xs text-center text-slate-400 italic">Este punto no tiene teléfono de contacto registrado.</p>`
                 : `<button onclick="closeModal('modal-detail');openModal('modal-login')" class="w-full bg-slate-200 text-slate-600 py-3 rounded-lg font-bold hover:bg-slate-300 text-center block transition text-xs">Inicia Sesión para Contactar</button>`);
         
-        const mapsUrl = c.link ? c.link : (c.lat && c.lng ? `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lng}` : null);
+        const mapsUrl = mapsUrlFor(c);
         
         actions.innerHTML = `
             <button onclick="closeModal('modal-detail'); openReport(${c.id})" class="w-full text-xs text-amber-700 font-semibold hover:underline mb-2">⚠️ Reportar novedad de este cargador</button>
-            ${mapsUrl ? `<a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" class="w-full bg-white text-blue-600 border border-blue-200 py-3 rounded-lg font-bold hover:bg-blue-50 text-center block transition mb-2 shadow-sm flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Navegar con Google Maps</a>` : ''}
+            ${mapsUrl ? `<a href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener" class="w-full bg-white text-blue-600 border border-blue-200 py-3 rounded-lg font-bold hover:bg-blue-50 text-center block transition mb-2 shadow-sm flex items-center justify-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Ir con Google Maps</a>` : ''}
             ${contactBtn}
         `;
 
