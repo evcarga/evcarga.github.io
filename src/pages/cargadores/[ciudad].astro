@@ -112,7 +112,7 @@ const jsonLd = {
                         {c.schedule && <><dt class="text-slate-400">Horario</dt><dd class="text-slate-800">{c.schedule}</dd></>}
                         <dt class="text-slate-400">Precio</dt><dd class="text-slate-800">{price(c.price_kwh, '/kWh')}</dd>
                     </dl>
-                    {mapsLink(c) && <a href={mapsLink(c)} target="_blank" rel="noopener" class="inline-block mt-3 text-sm font-bold text-blue-600 hover:underline">Cómo llegar →</a>}
+                    {mapsLink(c) && <a href={mapsLink(c)} target="_blank" rel="noopener" class="inline-block mt-3 text-sm font-bold text-blue-600 hover:underline">📍 Ir con Google Maps</a>}
                 </article>
             ))}
         </div>
