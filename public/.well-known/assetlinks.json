@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "io.github.evcarga.vial",
+    "sha256_cert_fingerprints": ["DB:08:D1:EC:EA:45:4A:E1:6B:21:2D:93:7A:0B:82:6A:8B:74:D9:39:93:B9:94:DC:AD:6A:19:EF:7D:09:81:C7"]
+  }
+}]
